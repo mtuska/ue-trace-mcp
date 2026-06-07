@@ -287,7 +287,14 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 			if (!ValidateChannel({ TEXT("cpu"), TEXT("gpu") })) return false;
 			break;
 		case EMode::Compare:
-			if (!ValidateChannel({ TEXT("cpu") })) return false;
+			// v0.5: widened from cpu-only to every channel that has a
+			// per-side aggregate we can diff. cpu/gpu/region share the
+			// event-aggregate shape; memory/memalloc/counter each have
+			// their own canonical row shape under events[].
+			if (!ValidateChannel({
+				TEXT("cpu"), TEXT("gpu"), TEXT("region"),
+				TEXT("memory"), TEXT("memalloc"), TEXT("counter"),
+			})) return false;
 			break;
 		default:
 			// Other modes ignore -channel= entirely.

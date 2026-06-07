@@ -2,6 +2,7 @@
   "file": "/fake/a.utrace",
   "file2": "/fake/b.utrace",
   "mode": "compare",
+  "channel": "cpu",
   "duration_a_ms": 16800.5,
   "duration_b_ms": 16950.2,
   "events": [

@@ -63,6 +63,7 @@ export interface CompareSide {
   max_ms: number;
 }
 
+/** cpu/gpu/region — event-aggregate diff row. */
 export interface CompareEvent {
   name: string;
   only_in_a: boolean;
@@ -73,13 +74,47 @@ export interface CompareEvent {
   b: CompareSide;
 }
 
+/** memory — per-tag peak-bytes diff row. */
+export interface CompareMemoryRow {
+  name: string;
+  a_peak_bytes: number;
+  b_peak_bytes: number;
+  delta_peak_bytes: number;
+  only_in_a: boolean;
+  only_in_b: boolean;
+}
+
+/** counter — per-counter mean+max diff row. */
+export interface CompareCounterRow {
+  name: string;
+  a_mean: number;
+  b_mean: number;
+  delta_mean: number;
+  a_max: number;
+  b_max: number;
+  delta_max: number;
+  only_in_a: boolean;
+  only_in_b: boolean;
+}
+
+/** memalloc — fixed 4-metric diff (per session, not per-name). */
+export interface CompareMemallocRow {
+  /** "peak_total_allocated_bytes" | "max_live_allocations" | "alloc_events_total" | "free_events_total" */
+  metric: string;
+  a_value: number;
+  b_value: number;
+  delta: number;
+}
+
 export interface CompareOutput {
   file: string;
   file2: string;
   mode: "compare";
+  channel: "cpu" | "gpu" | "region" | "memory" | "memalloc" | "counter";
   duration_a_ms: number;
   duration_b_ms: number;
-  events: CompareEvent[];
+  /** Row shape is channel-specific — see the per-channel types above. */
+  events: Array<CompareEvent | CompareMemoryRow | CompareCounterRow | CompareMemallocRow>;
 }
 
 // --- v0.2 ---

@@ -26,15 +26,16 @@ const butterflyChannel = z
     "Trace channel to butterfly into. cpu (default) or gpu. Regions have no caller/callee relationships.",
   );
 
-// trace_compare ships cpu-only in v0.4.0; gpu/memory/etc. compares land in
-// a later phase. The field exists in the schema so future widening is
-// non-breaking; non-cpu values are rejected at parse time.
+// trace_compare now supports every channel that has a meaningful diff
+// shape. cpu/gpu/region share the event-aggregate row (count, total, P95,
+// delta_p95, only_in_a/b); memory/counter/memalloc each have their own
+// row shape under the polymorphic events[] wrapper.
 const compareChannel = z
-  .enum(["cpu"])
+  .enum(["cpu", "gpu", "region", "memory", "memalloc", "counter"])
   .optional()
   .default("cpu")
   .describe(
-    "Trace channel to compare. Only 'cpu' is supported in v0.4.0; non-cpu channels error out.",
+    "Trace channel to compare. Default 'cpu'. cpu/gpu/region use the event-aggregate diff shape; memory/memalloc/counter each have their own row shape.",
   );
 
 const frameType = z
