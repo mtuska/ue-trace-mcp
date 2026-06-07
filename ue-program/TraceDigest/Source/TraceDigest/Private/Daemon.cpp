@@ -40,19 +40,62 @@ int RunDaemon(const FArgs&)
 static volatile sig_atomic_t gShutdownRequested = 0;
 static void OnSignal(int /*signo*/) { gShutdownRequested = 1; }
 
-static ssize_t ReadAll(int fd, void* buf, size_t n)
+// Per-request I/O timeout. A slow / silent same-user attacker connecting to
+// the socket would otherwise block the single-threaded accept loop forever
+// (`ReadAll` retried EINTR unconditionally, so SIGTERM couldn't unblock it).
+// 5 seconds is far longer than any healthy MCP client query takes; anything
+// past that is treated as a hung peer and dropped.
+static constexpr int kPerRequestTimeoutMs = 5000;
+
+// poll(2) once on `fd` for POLLIN with the given remaining-budget. Returns:
+//   1  — data ready
+//   0  — timed out
+//  -1  — error / shutdown requested (caller should bail)
+static int PollOnceForRead(int fd, int TimeoutMs)
+{
+	pollfd pfd{};
+	pfd.fd = fd;
+	pfd.events = POLLIN;
+	for (;;)
+	{
+		const int rc = ::poll(&pfd, 1, TimeoutMs);
+		if (rc >= 0) return rc;
+		if (errno == EINTR)
+		{
+			if (gShutdownRequested) return -1;
+			continue;
+		}
+		return -1;
+	}
+}
+
+// Read exactly `n` bytes from a connected socket within a wall-clock deadline.
+// Returns the number of bytes read on success, 0 on clean EOF, -1 on timeout
+// or shutdown or hard I/O error. The `poll()` wrapper makes us responsive to
+// SIGTERM/SIGINT even while a peer is sending its bytes slowly.
+static ssize_t ReadAllTimed(int fd, void* buf, size_t n, int TimeoutMs)
 {
 	char* p = static_cast<char*>(buf);
 	size_t remaining = n;
+	const double Deadline = FPlatformTime::Seconds() + (TimeoutMs / 1000.0);
 	while (remaining > 0)
 	{
+		const int RemainingMs = static_cast<int>(
+			FMath::Max(0.0, (Deadline - FPlatformTime::Seconds()) * 1000.0));
+		const int Ready = PollOnceForRead(fd, RemainingMs);
+		if (Ready <= 0) return -1; // 0 = timeout, -1 = error/shutdown
+
 		const ssize_t r = ::read(fd, p, remaining);
 		if (r < 0)
 		{
-			if (errno == EINTR) continue;
+			if (errno == EINTR)
+			{
+				if (gShutdownRequested) return -1;
+				continue;
+			}
 			return -1;
 		}
-		if (r == 0) return 0; // peer closed
+		if (r == 0) return 0; // peer closed mid-frame
 		remaining -= r;
 		p += r;
 	}
@@ -68,7 +111,11 @@ static ssize_t WriteAll(int fd, const void* buf, size_t n)
 		const ssize_t w = ::write(fd, p, remaining);
 		if (w < 0)
 		{
-			if (errno == EINTR) continue;
+			if (errno == EINTR)
+			{
+				if (gShutdownRequested) return -1;
+				continue;
+			}
 			return -1;
 		}
 		remaining -= w;
@@ -80,14 +127,17 @@ static ssize_t WriteAll(int fd, const void* buf, size_t n)
 static bool RecvFramed(int fd, FString& Out, uint32 MaxLen = 1u * 1024u * 1024u)
 {
 	uint32 LenBE = 0;
-	if (ReadAll(fd, &LenBE, 4) != 4) return false;
+	if (ReadAllTimed(fd, &LenBE, 4, kPerRequestTimeoutMs) != 4) return false;
 	const uint32 Len = ntohl(LenBE);
 	if (Len > MaxLen) return false;
 	if (Len == 0) { Out.Empty(); return true; }
 
 	TArray<char> Buf;
 	Buf.SetNumUninitialized(static_cast<int32>(Len) + 1);
-	if (ReadAll(fd, Buf.GetData(), Len) != static_cast<ssize_t>(Len)) return false;
+	if (ReadAllTimed(fd, Buf.GetData(), Len, kPerRequestTimeoutMs) != static_cast<ssize_t>(Len))
+	{
+		return false;
+	}
 	Buf[Len] = '\0';
 	Out = FString(UTF8_TO_TCHAR(Buf.GetData()));
 	return true;
@@ -191,20 +241,16 @@ static FString HandleQuery(FDaemonState& State, const FString& CmdLine)
 		case EMode::Threads:  Modes::RunThreads (Session, Args, Json); break;
 		case EMode::Compare:
 		{
-			if (Args.File2.IsEmpty())
-			{
-				return BuildErrResponse(TEXT("compare requires -file2="));
-			}
-			// Daemon caches one trace; the second is loaded fresh per request.
-			// That's slower than a multi-trace daemon but keeps the model simple.
-			FLoadedTrace TraceB;
-			FString LoadErr;
-			if (!TraceB.LoadEx(Args.File2, Args.bDisableCache, LoadErr))
-			{
-				return BuildErrResponse(LoadErr);
-			}
-			Modes::RunCompare(Session, *TraceB.GetSession(), Args, Json);
-			break;
+			// Refused in daemon mode: -file2= would be a client-controlled,
+			// arbitrary-filesystem-path open inside this long-lived process,
+			// breaking the daemon's "trace is fixed at boot" invariant and
+			// giving a same-user attacker who reached the socket a way to make
+			// us OpenRead anything the daemon user can read. Compare is only
+			// available via the one-shot path (where the launcher controls
+			// both file arguments).
+			return BuildErrResponse(
+				TEXT("compare is not available in daemon mode; "
+				     "invoke TraceDigest one-shot with -mode=compare -file=… -file2=…"));
 		}
 	}
 
