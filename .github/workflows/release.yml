@@ -92,6 +92,55 @@ jobs:
       - name: Stage LICENSE into npm package
         run: cp LICENSE mcp-server/LICENSE
 
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          # Flatten: all of tracedigest-linux/*.tar.gz, tracedigest-windows/*.zip
+          # end up under artifacts/<name>/<file>.
+          merge-multiple: false
+
+      - name: Inspect artifacts
+        run: find artifacts -type f -printf '%p (%s bytes)\n'
+
+      # Order matters: create the GitHub release (with binaries attached)
+      # BEFORE publishing to npm. The npm package's `ensureBinary()` lazily
+      # downloads the matching binary from the v<version> GH release on first
+      # run. If npm publish happens first, there's a window in which `npx
+      # @mtuska/ue-trace-mcp@<new>` would 404 trying to fetch the binary.
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="v${{ needs.validate.outputs.version }}"
+          notes_file=$(mktemp)
+          cat >"$notes_file" <<EOF
+          # ue-trace-mcp $version
+
+          ## Install
+
+          \`\`\`
+          npx @mtuska/ue-trace-mcp@${{ needs.validate.outputs.version }}
+          \`\`\`
+
+          On first run the package downloads the matching TraceDigest binary
+          (~10 MB) into \`~/.cache/ue-trace-mcp/${{ needs.validate.outputs.version }}/\`
+          and reuses it thereafter. Set \`TRACE_DIGEST_BIN\` to override with
+          a locally-built binary.
+
+          Binaries below are built against **UE 5.7**. They may not load
+          against older or newer engine versions — engine binary compatibility
+          is not guaranteed across minor releases.
+
+          See the [README](https://github.com/mtuska/ue-trace-mcp#readme) for
+          the full setup.
+          EOF
+          gh release create "$version" \
+            --title "$version" \
+            --notes-file "$notes_file" \
+            artifacts/*/*.tar.gz \
+            artifacts/*/*.zip
+
       # Trusted Publishing needs a fairly recent npm — the ID-token exchange
       # only landed in npm 11.x. The shipped npm on ubuntu-latest is usually
       # fine, but pin to latest to be safe and to keep `--provenance` cheap.
@@ -107,46 +156,3 @@ jobs:
       - name: Publish to npm (Trusted Publishing via OIDC)
         working-directory: mcp-server
         run: npm publish --access public --provenance
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          # Flatten: all of tracedigest-linux/*.tar.gz, tracedigest-windows/*.zip
-          # end up under artifacts/<name>/<file>.
-          merge-multiple: false
-
-      - name: Inspect artifacts
-        run: find artifacts -type f -printf '%p (%s bytes)\n'
-
-      - name: Create GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          version="v${{ needs.validate.outputs.version }}"
-          notes_file=$(mktemp)
-          cat >"$notes_file" <<EOF
-          # ue-trace-mcp $version
-
-          ## Install
-
-          MCP server (TypeScript):
-
-              npx @mtuska/ue-trace-mcp@${{ needs.validate.outputs.version }}
-
-          TraceDigest binary (UE Program): download the matching tarball/zip
-          below and unpack to a directory of your choice. Point the MCP server
-          at it via \`TRACE_DIGEST_BIN=/path/to/TraceDigest\`.
-
-          Binaries are built against **UE 5.7**. They may not load against
-          older or newer engine versions — engine binary compatibility is
-          not guaranteed across minor releases.
-
-          See the [README](https://github.com/mtuska/ue-trace-mcp#readme) for
-          the full setup.
-          EOF
-          gh release create "$version" \
-            --title "$version" \
-            --notes-file "$notes_file" \
-            artifacts/*/*.tar.gz \
-            artifacts/*/*.zip

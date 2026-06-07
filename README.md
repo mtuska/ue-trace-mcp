@@ -48,40 +48,55 @@ ue-trace-mcp/
 
 ## Quick start
 
-1. Symlink the program source into your engine and build it:
+Wire the MCP server into your `<project>/.mcp.json` — that's it. No prebuild, no binary management:
 
-   ```bash
-   make build-program UE_SOURCE=/abs/path/to/UnrealEngine
-   # produces $UE_SOURCE/Engine/Binaries/Linux/TraceDigest (~300KB)
-   ```
+```jsonc
+{
+  "mcpServers": {
+    "ue-trace": {
+      "command": "npx",
+      "args": ["-y", "@mtuska/ue-trace-mcp"]
+    }
+  }
+}
+```
 
-2. Build the MCP server:
+On first invocation the package downloads the matching `TraceDigest` binary (~10 MB) from the GitHub release tagged at its own npm version into `~/.cache/ue-trace-mcp/<version>/` and reuses it afterward. Linux x64 and Windows x64 are supported out of the box; macOS isn't shipped yet (set `TRACE_DIGEST_BIN` to a locally-built binary).
 
-   ```bash
-   make build-mcp
-   ```
+Versions stay in lockstep automatically: `npx @mtuska/ue-trace-mcp@0.3.1` always pulls the `v0.3.1` release's `TraceDigest`.
 
-3. Wire it into your MCP config (e.g. `<project>/.mcp.json`):
+### Dev / from-source path
 
-   ```jsonc
-   {
-     "mcpServers": {
-       "ue-trace": {
-         "command": "node",
-         "args": ["/abs/path/to/ue-trace-mcp/mcp-server/dist/index.js"],
-         "env": {
-           "TRACE_DIGEST_BIN": "/abs/path/to/UnrealEngine/Engine/Binaries/Linux/TraceDigest"
-         }
-       }
-     }
-   }
-   ```
+If you're hacking on this repo or running against a locally-built binary:
 
-4. Smoke-test:
+```bash
+make build-program UE_SOURCE=/abs/path/to/UnrealEngine
+make build-mcp
+```
 
-   ```bash
-   make smoke         FILE=/abs/path/to/foo.utrace   # direct binary
-   make smoke-daemon  FILE=/abs/path/to/foo.utrace   # cold + warm timing through daemon
+Then point `.mcp.json` at the local server + binary:
+
+```jsonc
+{
+  "mcpServers": {
+    "ue-trace": {
+      "command": "node",
+      "args": ["/abs/path/to/ue-trace-mcp/mcp-server/dist/index.js"],
+      "env": {
+        "TRACE_DIGEST_BIN": "/abs/path/to/UnrealEngine/Engine/Binaries/Linux/TraceDigest"
+      }
+    }
+  }
+}
+```
+
+`TRACE_DIGEST_BIN` overrides the lazy-download path entirely.
+
+### Smoke-test
+
+```bash
+make smoke         FILE=/abs/path/to/foo.utrace   # direct binary
+make smoke-daemon  FILE=/abs/path/to/foo.utrace   # cold + warm timing through daemon
    ```
 
 ## Daemon mode

@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+import { ensureBinary } from "./binary.js";
 import { createServer } from "./server.js";
 
 async function main(): Promise<void> {
+  // Resolve the TraceDigest binary path before constructing the server. This
+  // honours TRACE_DIGEST_BIN if set; otherwise downloads the version-matched
+  // release artifact into a per-user cache on first run.
+  const binary = await ensureBinary();
+
   const { server, daemons } = createServer({
-    runOptions: {
-      binary: process.env.TRACE_DIGEST_BIN,
-    },
+    runOptions: { binary },
     cacheSize: Number(process.env.TRACE_CACHE_SIZE ?? 5),
   });
 
