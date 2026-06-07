@@ -1,6 +1,6 @@
 {
   "name": "@mtuska/ue-trace-mcp",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "MCP server for LLM-driven Unreal Engine .utrace profiling. Wraps the headless TraceDigest UE Program and manages a long-lived daemon per trace.",
   "license": "Unlicense",
   "type": "module",
