@@ -3,7 +3,7 @@
 LLM-driven Unreal Engine `.utrace` profiling. Two pieces:
 
 - **`ue-program/TraceDigest/`** — a standalone UE `Program` target (same shape as `UnrealPak`). Reads a `.utrace` via the engine's `TraceServices` module and writes structured JSON. Supports a long-lived daemon mode that keeps the parsed session resident across queries. Requires a source-built engine.
-- **`mcp-server/`** — a TypeScript MCP server that wraps the binary. Spawns daemons on demand, caches output JSON, manages lifecycle. **26 tools** spanning every UE trace category.
+- **`mcp-server/`** — a TypeScript MCP server that wraps the binary. Spawns daemons on demand, caches output JSON, manages lifecycle. **37 tools** spanning every UE trace category Epic ships in TraceServices.
 
 A pure-TypeScript parser was considered and ruled out: the wire layer exists in `EpicGames.Tracing` (~800 LOC C#) but full semantic analysis (timing-scope reconstruction, percentiles per timer, frame/butterfly/thread/region/counter/memory/allocation providers) lives in `Engine/Source/Developer/TraceServices/` C++ with no port.
 
@@ -31,19 +31,23 @@ ue-trace-mcp/
 │               ├── Modes.h
 │               └── Modes/
 │                   ├── SeriesBucket.h                     # time-bucketed downsampler (counter/memory/memalloc)
-│                   ├── Digest.cpp Timeline.cpp Frames.cpp Compare.cpp     # cpu+gpu+region channels for the agnostic verbs
+│                   ├── Digest.cpp Timeline.cpp Frames.cpp Compare.cpp     # cpu+gpu+region (Compare extended to memory/memalloc/counter in v0.5)
 │                   ├── Overview.cpp Frame.cpp Butterfly.cpp Threads.cpp   # cpu drill-downs
 │                   ├── Channels.cpp                                       # IChannelProvider
 │                   ├── Gpu.cpp                                            # GPU queues/timeline/fences (incl. legacy fallback)
 │                   ├── Counters.cpp Bookmarks.cpp Regions.cpp Logs.cpp    # the per-channel reads
 │                   ├── Memory.cpp                                         # LLM tag tree + samples (IMemoryProvider)
 │                   ├── Allocations.cpp                                    # per-alloc (IAllocationsProvider, sync-polled)
-│                   └── Query.cpp                                          # trace_query intent dispatch
+│                   ├── Query.cpp                                          # trace_query intent dispatch
+│                   ├── Callstack.cpp Modules.cpp                          # v0.5: symbolication
+│                   ├── Tasks.cpp                                          # v0.5: ITasksProvider task graph
+│                   ├── Asset.cpp                                          # v0.5: ILoadTimeProfilerProvider (packages/requests/exports)
+│                   └── Net.cpp                                            # v0.5: INetProfilerProvider (instances/connections/packets/objects)
 └── mcp-server/                     # TypeScript MCP server
     ├── package.json
     ├── src/
     │   ├── index.ts                # stdio entrypoint + signal/EOF reaper
-    │   ├── server.ts               # tool registration (26 tools via McpServer)
+    │   ├── server.ts               # tool registration (37 tools via McpServer)
     │   ├── digest.ts               # daemon-or-one-shot router + argv builder
     │   ├── daemon.ts               # DaemonRegistry: spawn/track/query/reap + LOADING_PROGRESS capture
     │   ├── binary.ts               # lazy GH-release download with SHA256 verify
@@ -72,7 +76,7 @@ Wire the MCP server into your `<project>/.mcp.json` — that's it. No prebuild, 
 
 On first invocation the package downloads the matching `TraceDigest` binary (~10 MB) from the GitHub release tagged at its own npm version into `~/.cache/ue-trace-mcp/<version>/`, verifies its SHA-256 against the manifest baked into the npm package, and reuses it afterward. Linux x64 and Windows x64 are supported out of the box; macOS isn't shipped yet (set `TRACE_DIGEST_BIN` to a locally-built binary).
 
-Versions stay in lockstep automatically: `npx @mtuska/ue-trace-mcp@0.4.0` always pulls the `v0.4.0` release's `TraceDigest`.
+Versions stay in lockstep automatically: `npx @mtuska/ue-trace-mcp@0.5.0` always pulls the `v0.5.0` release's `TraceDigest`.
 
 ### Dev / from-source path
 
@@ -132,7 +136,7 @@ Environment overrides:
 
 ## Tool surface
 
-26 MCP tools. Each one's `inputSchema` is a plain JSON-Schema object — Claude Code and other MCP clients accept them cleanly.
+37 MCP tools. Each one's `inputSchema` is a plain JSON-Schema object — Claude Code and other MCP clients accept them cleanly.
 
 The naming convention separates **channel-agnostic verbs** (flat-named, take a `channel` param) from **channel-bound verbs** (`trace_<channel>_<purpose>`).
 
@@ -157,23 +161,27 @@ Default channel is `cpu` — every v0.3 call site works unchanged.
 | `trace_timeline` | `cpu` (default), `gpu`, `region`. Every instance of one named event/region with `{frame_idx, start_ms, duration_ms}`. |
 | `trace_callers` | `cpu` (default), `gpu`. Butterfly upward via `FCreateButterflyParams` — UE natively supports both filter types. |
 | `trace_callees` | `cpu` (default), `gpu`. Butterfly downward. |
-| `trace_compare` | `cpu` only in v0.4.0. Diff two traces, ranked by \|Δ P95\|. Non-cpu channels error with a clear message. |
+| `trace_compare` | **v0.5**: `cpu` (default), `gpu`, `region`, `memory`, `memalloc`, `counter`. cpu/gpu/region share the event-aggregate diff (count, total, P95, delta_p95, only_in_a/b); memory/memalloc/counter each have their own row shape. |
 | `trace_frames` | `frame_type: game` (default). Per-frame durations, sorted by `idx` or `duration_ms`. |
 
-### Channel-bound (14)
+### Channel-bound (25)
 
 | channel | tools |
 | --- | --- |
-| **cpu** | `trace_cpu_threads` — per-thread breakdown with top-10 timers (renamed from `trace_threads`) |
+| **cpu** | `trace_cpu_threads` — per-thread breakdown with top-10 timers |
 | **gpu** | `trace_gpu_queues` — GPU queue list (incl. legacy Gpu1/Gpu2 fallback); `trace_gpu_fences` — resolved cross-queue fence pairs with stall_ms |
 | **counter** | `trace_counter_catalogue` — every counter + metadata; `trace_counter_series` — time-bucketed values for one counter |
 | **bookmark** | `trace_bookmark_list` — `TRACE_BOOKMARK` annotations |
-| **region** | `trace_region_list` — `TRACE_BEGIN/END_REGION` spans, optionally filtered by category. Carries a per-row `open` flag for spans that never closed. |
+| **region** | `trace_region_list` — `TRACE_BEGIN/END_REGION` spans, optionally filtered by category. Per-row `open` flag for spans that never closed. |
 | **log** | `trace_log_messages` — windowed `UE_LOG` enumeration with verbosity floor / category / grep filters |
 | **memory** (LLM tags) | `trace_memory_trackers` / `trace_memory_tags` / `trace_memory_samples` — tag tree + per-tag time series |
 | **memalloc** (per-alloc) | `trace_memalloc_timeline` (aggregate stats), `trace_memalloc_heaps` (FHeapSpec tree), `trace_memalloc_query` (rule-based query, sync-wrapped) |
+| **callstack / module** | **v0.5** `trace_callstack` — resolve one `callstack_id` (carried by every event row) to symbolicated frames; **v0.5** `trace_modules` — discovered modules + symbol-resolution stats |
+| **task graph** | **v0.5** `trace_task_list` — windowed `ITasksProvider` enumeration with state filter; **v0.5** `trace_task_drill` — full FTaskInfo for one task id + four relation arrays |
+| **asset / loadtime** | **v0.5** `trace_asset_packages` / `trace_asset_requests` / `trace_asset_exports` — per-package + per-request + per-export load timings with main-thread/async-load split |
+| **net** | **v0.5** `trace_net_instances` / `trace_net_connections` / `trace_net_packets` (windowed) / `trace_net_objects` — multiplayer profiler hierarchy |
 
-Every row payload sits under `events` (or `series` / `tags` / `heaps` where the shape isn't event-like — documented per-tool).
+Every row payload sits under `events` (or `series` / `tags` / `heaps` / `frames` / `modules` where the shape isn't event-like — documented per-tool).
 
 ### `trace_query` intents
 
@@ -200,13 +208,13 @@ The real fix for "the LLM keeps re-parsing the same trace" is **daemon mode** �
 Cutting a release:
 
 ```bash
-# 1. Bump the version in mcp-server/package.json (e.g. 0.4.0)
+# 1. Bump the version in mcp-server/package.json (e.g. 0.5.0)
 # 2. Commit, then tag the same version with a `v` prefix:
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
-The `release` workflow takes over: it validates the tag matches `package.json`, builds the `TraceDigest` binary on Linux + Windows runners against UE 5.7, bakes a `binaries.json` manifest with per-platform SHA-256 hashes into the npm package, publishes the `@mtuska/ue-trace-mcp` npm package via Trusted Publishing (OIDC), and creates a GitHub release with both binaries attached as `TraceDigest-v0.4.0-ue5.7-{linux-x64,windows-x64}.{tar.gz,zip}`.
+The `release` workflow takes over: it validates the tag matches `package.json`, builds the `TraceDigest` binary on Linux + Windows runners against UE 5.7, bakes a `binaries.json` manifest with per-platform SHA-256 hashes into the npm package, publishes the `@mtuska/ue-trace-mcp` npm package via Trusted Publishing (OIDC), and creates a GitHub release with both binaries attached as `TraceDigest-v0.5.0-ue5.7-{linux-x64,windows-x64}.{tar.gz,zip}`.
 
 To dry-run the binary build without publishing, run the `build-program` workflow manually from the Actions tab (it accepts a `ue_branch` input — default `5.7`).
 
@@ -216,18 +224,24 @@ Required repo secret (Settings → Secrets and variables → Actions):
 
 ## Status
 
-v0.4 scope:
+v0.5 scope:
 
-- **Every UE trace category**: cpu, gpu (incl. legacy Gpu1/Gpu2 fallback), frames (game), regions, bookmarks, counters, logs, memory (LLM tags), memalloc (per-allocation)
-- Channel-aware `trace_overview` with per-category sub-blocks
-- `trace_query` intent dispatcher with 3 starter intents (frames↔counters, events↔regions, logs↔frames)
-- Daemon mode with memory budget, idle reap, MCP-shutdown teardown
-- **Load-progress visibility** via `trace_status.loading[]` for multi-GB captures
-- True P50 / P95 / P99 via reservoir sampling (200k cap per timer)
-- Lazy GH-release binary fetch with SHA-256 verification anchored in the npm-provenance-signed package
-- File-based traces only (no live ingestion)
+- **Every public TraceServices provider Epic ships** (modulo the niche Slate/Cook/Screenshot/PIX ones — see below). Net trace, task graph, asset/load-time, callstack symbolication + module list are all live.
+- Channel-aware `trace_overview` with per-category sub-blocks (cpu/memory/memalloc).
+- `trace_query` intent dispatcher (frames↔counters, events↔regions, logs↔frames).
+- **`trace_compare` covers every channel** (cpu/gpu/region share the event-aggregate shape; memory/memalloc/counter each have their own diff row shape).
+- Daemon mode with memory budget, idle reap, MCP-shutdown teardown, and load-progress visibility via `trace_status.loading[]` for multi-GB captures.
+- True P50 / P95 / P99 via reservoir sampling (200k cap per timer).
+- Lazy GH-release binary fetch with SHA-256 verification anchored in the npm-provenance-signed package.
+- File-based traces only (no live ingestion).
 
-Out of scope for v0.4: CSV-Profiler captures (rarely-used UE feature); stack samples / sampled callstacks; task graph; net trace; Slate/asset/cook providers; non-CPU `trace_compare` (land in v0.5+); Windows daemon mode (POSIX-only socket code — Windows one-shot still works fine).
+Out of scope (deferred to v0.6+):
+
+- **Stack samples / sampling profiler** — distinct from on-demand callstack lookup; would be its own provider walk + symbolication chain.
+- **CSV-Profiler captures** (`ICsvProfilerProvider`) — overlap with `trace_counter_*`; flagged niche by user direction.
+- **Slate / Cook / Screenshot / PIX-specific providers** — niche / awkward fit (screenshots are binary blobs that don't pass cleanly over MCP JSON).
+- **Windows daemon mode** — POSIX-only socket code in `Daemon.cpp`. Windows 10+ supports `AF_UNIX` natively but the headers and `bind` flow differ; ~3 days of work. Windows one-shot mode still works fine.
+- **Inline callstack resolution on existing tools** — by design choice. The dedicated `trace_callstack({ id })` lookup is the v0.5 contract; on-row symbolication was rejected to keep response sizes bounded.
 
 ## Binary-engine path (removed)
 

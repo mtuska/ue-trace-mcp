@@ -99,30 +99,41 @@ export interface ServerOptions {
 // Code, Claude Desktop) read this. Keep it terse — the per-tool
 // descriptions carry the details; this is the orientation pass.
 const SERVER_INSTRUCTIONS = `\
-ue-trace-mcp wraps Unreal Engine .utrace captures. It surfaces every UE
-trace category (cpu, gpu, frames, regions, bookmarks, counters, logs,
-memory/LLM tags, per-allocation tracking) as MCP tools.
+ue-trace-mcp wraps Unreal Engine .utrace captures. v0.5 covers every
+public TraceServices provider Epic ships: cpu, gpu, frames, regions,
+bookmarks, counters, logs, memory/LLM tags, per-allocation tracking,
+callstacks + module symbolication, task graph, asset/load-time, and
+multiplayer net trace.
 
 Suggested workflow for a fresh trace:
   1. trace_channels    — see which channels were actually captured.
   2. trace_overview    — first-look snapshot. CPU frame stats + slowest
                          frames + top events live under \`cpu\`; memory
                          and memalloc summaries sit alongside.
-  3. Then drill down with the channel-specific tools or use
-     trace_query (intent-dispatched) for cross-cutting questions.
+  3. Drill down with the channel-specific tools (trace_cpu_threads,
+     trace_gpu_*, trace_memory_*, trace_memalloc_*, trace_task_list,
+     trace_asset_*, trace_net_*, …).
+  4. Resolve any callstack_id you see via trace_callstack({ id }); if
+     a frame status is "not_loaded" / "version_mismatch", check
+     trace_modules for the parent module's state.
+  5. Use trace_query (intent-dispatched) for cross-cutting questions
+     the specific tools can't answer.
+  6. trace_compare two captures along any channel (cpu/gpu/region share
+     the event-aggregate diff shape; memory/memalloc/counter each
+     have their own row shape).
 
 Naming convention:
   * Flat names (trace_overview, trace_digest, …) when the verb is
-    channel-agnostic — pass \`channel: "cpu" | "gpu" | "region"\` to
-    redirect; default is cpu.
+    channel-agnostic — pass \`channel\` to redirect; default cpu.
   * trace_<channel>_<purpose> when the verb is tied to one provider
-    (trace_cpu_threads, trace_gpu_queues, trace_memory_tags, …).
+    (trace_cpu_threads, trace_gpu_queues, trace_memory_tags,
+    trace_task_drill, trace_asset_packages, trace_net_packets, …).
 
-Long loads: multi-GB traces can take minutes to parse. trace_status now
+Long loads: multi-GB traces can take minutes to parse. trace_status
 returns a \`loading[]\` array alongside \`daemons[]\`; each entry carries
-\`wall_elapsed_ms\` (MCP-side clock) and \`last_progress_elapsed_ms\`
-(the binary's own heartbeat, ~500ms cadence). If wall keeps climbing
-but last_progress freezes, the load is stuck.
+\`wall_elapsed_ms\` (MCP clock) and \`last_progress_elapsed_ms\` (the
+binary's own ~500ms heartbeat). If wall keeps climbing but last_progress
+freezes, the load is stuck.
 
 trace_query intents (use intent="list" to discover the registry):
   * frames_where_counter_exceeds — find frames where a counter crosses
@@ -524,7 +535,7 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
   ];
 
   const mcp = new McpServer(
-    { name: "ue-trace-mcp", version: "0.4.0-dev" },
+    { name: "ue-trace-mcp", version: "0.5.0" },
     {
       capabilities: { tools: {} },
       instructions: SERVER_INSTRUCTIONS,
