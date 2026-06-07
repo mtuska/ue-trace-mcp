@@ -7,6 +7,8 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Modules.h"
 
+#include <atomic>  // std::memory_order_acquire — Modules.h pulls in <atomic> transitively, but make the dependency explicit so a future Modules.h refactor can't break Windows builds silently.
+
 using namespace TraceServices;
 
 namespace TraceDigest

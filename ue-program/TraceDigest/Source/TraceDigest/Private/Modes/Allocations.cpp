@@ -7,6 +7,7 @@
 #include "SeriesBucket.h"
 
 #include "HAL/PlatformProcess.h"
+#include "HAL/PlatformTime.h"  // FPlatformTime::Seconds (transitively included via PCH on Linux but not on Windows MSVC)
 #include "ProfilingDebugging/MemoryTrace.h"  // HeapId typedef
 #include "TraceServices/Model/AllocationsProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
