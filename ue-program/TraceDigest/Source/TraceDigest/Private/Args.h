@@ -25,6 +25,7 @@ enum class EMode : uint8
 	Regions,   // TRACE_BEGIN/END_REGION time spans
 	Logs,      // captured UE_LOG output, windowed + filtered
 	Memory,    // LLM tag tree + per-tag time-bucketed samples (view-dispatched)
+	Allocations, // Per-allocation tracking (timeline/heaps/query view-dispatched)
 };
 
 struct FArgs
@@ -52,8 +53,12 @@ struct FArgs
 	FString Grep;          // -grep=<substr> for log message filtering
 	FString Tracker;       // -tracker=<id|name> for memory views
 	FString Tag;           // -tag=<id|name> for memory sample queries
+	FString Rule;          // -rule=<name> for allocation queries (aAf|afA|Aaf|AafB|…)
 	int32 Buckets = 256;   // -buckets=<N> bins for time-series downsampling
 	int32 Queue = -1;      // -queue=<id> for per-queue GPU views
+	double TimeA = -1.0;   // -timeA=<sec> query rule time anchor
+	double TimeB = -1.0;   // -timeB=<sec> query rule time anchor
+	int32 QueryTimeoutMs = 60000;  // -query-timeout-ms=<N> for sync-wrapped allocations queries
 
 	// Daemon mode (Program target only). The Program loads the trace once and
 	// services repeated queries over a Unix socket until idle timeout or

@@ -290,3 +290,62 @@ export const MemorySamplesArgs = z.object({
     .describe("Number of equal-width time buckets. Default 256."),
 });
 export type MemorySamplesArgsT = z.infer<typeof MemorySamplesArgs>;
+
+// trace_memalloc_* family — three umbrella views on IAllocationsProvider.
+
+// trace_memalloc_timeline: aggregate stats over time (max total allocated
+// memory, max live allocations, alloc/free events per timeline point).
+export const MemallocTimelineArgs = z.object({
+  file,
+  buckets: z
+    .number()
+    .int()
+    .positive()
+    .max(4096)
+    .optional()
+    .describe("Number of equal-width time buckets. Default 256."),
+});
+export type MemallocTimelineArgsT = z.infer<typeof MemallocTimelineArgs>;
+
+// trace_memalloc_heaps: heap-spec tree (FHeapSpec); tiny.
+export const MemallocHeapsArgs = z.object({
+  file,
+});
+export type MemallocHeapsArgsT = z.infer<typeof MemallocHeapsArgs>;
+
+// trace_memalloc_query: rule-based allocation query (active-at-T, leaked,
+// short-lived, …). Sync-polled inside the binary; LLM gets the
+// completed/truncated/events shape back.
+export const MemallocQueryArgs = z.object({
+  file,
+  rule: z
+    .enum(["aAf", "afA", "Aaf", "aAfB"])
+    .describe(
+      "Allocation query rule. aAf=active at A; afA=allocated+freed before A; Aaf=allocated after A; aAfB=active at A, freed before B (long-living window).",
+    ),
+  timeA: z
+    .number()
+    .nonnegative()
+    .optional()
+    .describe("Time anchor A in seconds. Required for every rule; default 0."),
+  timeB: z
+    .number()
+    .nonnegative()
+    .optional()
+    .describe("Time anchor B in seconds. Required for two-anchor rules (aAfB)."),
+  limit: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Cap returned rows. Default 200. `truncated:true` flags overrun."),
+  query_timeout_ms: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      "How long to wait for the async query before cancelling. Default 60000 (60s). The C++ side polls every 25ms.",
+    ),
+});
+export type MemallocQueryArgsT = z.infer<typeof MemallocQueryArgs>;

@@ -45,7 +45,8 @@ export interface DigestArgsRaw {
     | "bookmarks"
     | "regions"
     | "logs"
-    | "memory";
+    | "memory"
+    | "allocations";
   prefix?: string;
   event?: string;
   limit?: number;
@@ -62,8 +63,12 @@ export interface DigestArgsRaw {
   grep?: string;
   tracker?: string;
   tag?: string;
+  rule?: string;
+  timeA?: number;
+  timeB?: number;
   buckets?: number;
   queue?: number;
+  queryTimeoutMs?: number;
 }
 
 export class TraceDigestError extends Error {
@@ -112,8 +117,12 @@ function buildBinaryArgv(args: DigestArgsRaw, outPath?: string): string[] {
   if (args.grep) argv.push(`-grep=${args.grep}`);
   if (args.tracker) argv.push(`-tracker=${args.tracker}`);
   if (args.tag) argv.push(`-tag=${args.tag}`);
+  if (args.rule) argv.push(`-rule=${args.rule}`);
+  if (args.timeA !== undefined) argv.push(`-timeA=${args.timeA}`);
+  if (args.timeB !== undefined) argv.push(`-timeB=${args.timeB}`);
   if (args.buckets !== undefined) argv.push(`-buckets=${args.buckets}`);
   if (args.queue !== undefined) argv.push(`-queue=${args.queue}`);
+  if (args.queryTimeoutMs !== undefined) argv.push(`-query-timeout-ms=${args.queryTimeoutMs}`);
 
   if (outPath) argv.push(`-out=${outPath}`);
   return argv;
@@ -158,8 +167,12 @@ async function runViaDaemon(
   if (args.grep) parts.push(`-grep=${args.grep}`);
   if (args.tracker) parts.push(`-tracker=${args.tracker}`);
   if (args.tag) parts.push(`-tag=${args.tag}`);
+  if (args.rule) parts.push(`-rule=${args.rule}`);
+  if (args.timeA !== undefined) parts.push(`-timeA=${args.timeA}`);
+  if (args.timeB !== undefined) parts.push(`-timeB=${args.timeB}`);
   if (args.buckets !== undefined) parts.push(`-buckets=${args.buckets}`);
   if (args.queue !== undefined) parts.push(`-queue=${args.queue}`);
+  if (args.queryTimeoutMs !== undefined) parts.push(`-query-timeout-ms=${args.queryTimeoutMs}`);
 
   const data = await registry.query(args.file, parts.join(" "));
   return data as AnyDigestOutput;

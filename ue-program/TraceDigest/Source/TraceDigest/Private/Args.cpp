@@ -28,6 +28,7 @@ const TCHAR* FArgs::ModeName(EMode M)
 		case EMode::Regions:   return TEXT("regions");
 		case EMode::Logs:      return TEXT("logs");
 		case EMode::Memory:    return TEXT("memory");
+		case EMode::Allocations: return TEXT("allocations");
 	}
 	return TEXT("digest");
 }
@@ -53,6 +54,7 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 		else if (ModeStr.Equals(TEXT("regions"),   ESearchCase::IgnoreCase)) { Mode = EMode::Regions;   }
 		else if (ModeStr.Equals(TEXT("logs"),      ESearchCase::IgnoreCase)) { Mode = EMode::Logs;      }
 		else if (ModeStr.Equals(TEXT("memory"),    ESearchCase::IgnoreCase)) { Mode = EMode::Memory;    }
+		else if (ModeStr.Equals(TEXT("allocations"), ESearchCase::IgnoreCase)) { Mode = EMode::Allocations; }
 		else
 		{
 			OutError = FString::Printf(TEXT("unknown -mode='%s'"), *ModeStr);
@@ -79,8 +81,13 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 	FParse::Value(CmdLine, TEXT("-grep="),       Grep);
 	FParse::Value(CmdLine, TEXT("-tracker="),    Tracker);
 	FParse::Value(CmdLine, TEXT("-tag="),        Tag);
+	FParse::Value(CmdLine, TEXT("-rule="),       Rule);
 	FParse::Value(CmdLine, TEXT("-buckets="),    Buckets);
 	FParse::Value(CmdLine, TEXT("-queue="),      Queue);
+	FParse::Value(CmdLine, TEXT("-timeA="),      TimeA);
+	FParse::Value(CmdLine, TEXT("-timeB="),      TimeB);
+	FParse::Value(CmdLine, TEXT("-query-timeout-ms="), QueryTimeoutMs);
+	if (QueryTimeoutMs <= 0) QueryTimeoutMs = 60000;
 	if (Buckets <= 0) Buckets = 256;
 	if (Channel.IsEmpty()) Channel = TEXT("cpu");
 
@@ -163,6 +170,22 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 		if (View.Equals(TEXT("samples"), ESearchCase::IgnoreCase) && Tag.IsEmpty())
 		{
 			OutError = TEXT("-mode=memory -view=samples requires -tag=<id|name>");
+			return false;
+		}
+	}
+	if (Mode == EMode::Allocations)
+	{
+		if (View.IsEmpty()) View = TEXT("timeline");
+		if (!View.Equals(TEXT("timeline"), ESearchCase::IgnoreCase)
+			&& !View.Equals(TEXT("heaps"), ESearchCase::IgnoreCase)
+			&& !View.Equals(TEXT("query"), ESearchCase::IgnoreCase))
+		{
+			OutError = FString::Printf(TEXT("-mode=allocations unknown -view='%s' (expected timeline|heaps|query)"), *View);
+			return false;
+		}
+		if (View.Equals(TEXT("query"), ESearchCase::IgnoreCase) && Rule.IsEmpty())
+		{
+			OutError = TEXT("-mode=allocations -view=query requires -rule=<aAf|afA|Aaf|AafB|...>");
 			return false;
 		}
 	}

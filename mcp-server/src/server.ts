@@ -22,6 +22,9 @@ import {
   doGpuFences,
   doGpuQueues,
   doLogMessages,
+  doMemallocHeaps,
+  doMemallocQuery,
+  doMemallocTimeline,
   doMemorySamples,
   doMemoryTags,
   doMemoryTrackers,
@@ -47,6 +50,9 @@ import {
   GpuFencesArgs,
   GpuQueuesArgs,
   LogMessagesArgs,
+  MemallocHeapsArgs,
+  MemallocQueryArgs,
+  MemallocTimelineArgs,
   MemorySamplesArgs,
   MemoryTagsArgs,
   MemoryTrackersArgs,
@@ -296,6 +302,35 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
         "Use trace_memory_tags to discover tag ids/names.",
       schema: MemorySamplesArgs,
       handler: (a, c) => doMemorySamples(a, c),
+    },
+    {
+      name: "trace_memalloc_timeline",
+      description:
+        "Aggregate allocation stats across the trace: max_total_allocated_memory, max_live_allocations, " +
+        "alloc_events / free_events per timeline point. Each metric is time-bucketed into ~256 " +
+        "(configurable) buckets so the response is O(buckets). Empty arrays mean the memalloc channel " +
+        "wasn't captured.",
+      schema: MemallocTimelineArgs,
+      handler: (a, c) => doMemallocTimeline(a, c),
+    },
+    {
+      name: "trace_memalloc_heaps",
+      description:
+        "Heap-spec tree (FHeapSpec). Small. Use to discover root heap ids that show up in trace_memalloc_query rows.",
+      schema: MemallocHeapsArgs,
+      handler: (a, c) => doMemallocHeaps(a, c),
+    },
+    {
+      name: "trace_memalloc_query",
+      description:
+        "Rule-based query over individual allocations. The async StartQuery/PollQuery API is " +
+        "sync-wrapped inside the binary with a per-call timeout (default 60s) so the MCP call stays " +
+        "synchronous. Rules: aAf (active at A), afA (freed before A), Aaf (allocated after A), " +
+        "aAfB (active at A, freed before B). Results capped at -limit (default 200) and `truncated` " +
+        "is set when more rows existed in the query result set or the timeout fired before " +
+        "completion.",
+      schema: MemallocQueryArgs,
+      handler: (a, c) => doMemallocQuery(a, c),
     },
   ];
 

@@ -4,11 +4,14 @@
 #include "Args.h"
 #include "JsonOut.h"
 #include "Percentiles.h"
+#include "ProviderReadScope.h"
 
 #include "ProfilingDebugging/MiscTrace.h"
+#include "TraceServices/Model/AllocationsProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Channel.h"
 #include "TraceServices/Model/Frames.h"
+#include "TraceServices/Model/Memory.h"
 #include "TraceServices/Model/TimingProfiler.h"
 
 using namespace TraceServices;
@@ -172,6 +175,60 @@ void Modes::RunOverview(const IAnalysisSession& Session, const FArgs& Args, FJso
 	}
 	Json.EndArray();
 	Json.EndObject(); // cpu
+
+	// memory block — LLM tag tree summary. Only emitted when the provider
+	// exists (the channel was captured at all).
+	if (const IMemoryProvider* MemProv = ReadMemoryProvider(Session))
+	{
+		FProviderReadScope MemLock(*MemProv);
+		uint32 TrackerCount = MemProv->GetTrackerCount();
+		uint32 TagSetCount  = MemProv->GetTagSetCount();
+		int32  TagCount     = 0;
+		MemProv->EnumerateTags([&](const FMemoryTagInfo&) { ++TagCount; });
+
+		Json.Key(TEXT("memory"));
+		Json.BeginObject();
+		Json.KeyInt(TEXT("tracker_count"), static_cast<int64>(TrackerCount));
+		Json.KeyInt(TEXT("tag_set_count"), static_cast<int64>(TagSetCount));
+		Json.KeyInt(TEXT("tag_count"),     static_cast<int64>(TagCount));
+		Json.EndObject();
+	}
+
+	// memalloc block — per-allocation summary. Emitted when the provider
+	// exists; we report whether it actually has timeline data and a rough
+	// peak so the LLM knows whether deeper queries will return anything.
+	if (const IAllocationsProvider* AllocProv = ReadAllocationsProvider(Session))
+	{
+		FProviderReadScope AllocLock(*AllocProv);
+		const int32 TimelinePoints = AllocProv->GetTimelineNumPoints();
+
+		uint64 PeakBytes = 0;
+		uint32 AllocEvCount = 0;
+		uint32 FreeEvCount  = 0;
+		if (TimelinePoints > 0)
+		{
+			int32 StartIdx = 0;
+			int32 EndIdx   = TimelinePoints - 1;
+			AllocProv->GetTimelineIndexRange(0.0, EndSec, StartIdx, EndIdx);
+			AllocProv->EnumerateTimeline(IAllocationsProvider::ETimelineU64::MaxTotalAllocatedMemory,
+				StartIdx, EndIdx,
+				[&](double, double, uint64 V) { if (V > PeakBytes) PeakBytes = V; });
+			AllocProv->EnumerateTimeline(IAllocationsProvider::ETimelineU32::AllocEvents,
+				StartIdx, EndIdx,
+				[&](double, double, uint32 V) { AllocEvCount += V; });
+			AllocProv->EnumerateTimeline(IAllocationsProvider::ETimelineU32::FreeEvents,
+				StartIdx, EndIdx,
+				[&](double, double, uint32 V) { FreeEvCount += V; });
+		}
+
+		Json.Key(TEXT("memalloc"));
+		Json.BeginObject();
+		Json.KeyInt(TEXT("timeline_points"),   static_cast<int64>(TimelinePoints));
+		Json.KeyInt(TEXT("peak_bytes"),        static_cast<int64>(PeakBytes));
+		Json.KeyInt(TEXT("alloc_event_total"), static_cast<int64>(AllocEvCount));
+		Json.KeyInt(TEXT("free_event_total"),  static_cast<int64>(FreeEvCount));
+		Json.EndObject();
+	}
 
 	Json.EndObject(); // root
 }

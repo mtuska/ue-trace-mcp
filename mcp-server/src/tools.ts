@@ -15,6 +15,9 @@ import type {
   GpuFencesArgsT,
   GpuQueuesArgsT,
   LogMessagesArgsT,
+  MemallocHeapsArgsT,
+  MemallocQueryArgsT,
+  MemallocTimelineArgsT,
   MemorySamplesArgsT,
   MemoryTagsArgsT,
   MemoryTrackersArgsT,
@@ -38,6 +41,9 @@ import type {
   GpuFencesOutput,
   GpuQueuesOutput,
   LogMessagesOutput,
+  MemallocHeapsOutput,
+  MemallocQueryOutput,
+  MemallocTimelineOutput,
   MemorySamplesOutput,
   MemoryTagsOutput,
   MemoryTrackersOutput,
@@ -390,6 +396,59 @@ export async function doMemorySamples(
   )) as MemorySamplesOutput;
   await ctx.cache.put(args.file, variant, out);
   return out;
+}
+
+export async function doMemallocTimeline(
+  args: MemallocTimelineArgsT,
+  ctx: ToolContext,
+): Promise<MemallocTimelineOutput> {
+  const variant = variantHash("memalloc_timeline", { buckets: args.buckets });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as MemallocTimelineOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "allocations", file: args.file, view: "timeline", buckets: args.buckets },
+    ctx.runOptions,
+  )) as MemallocTimelineOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doMemallocHeaps(
+  args: MemallocHeapsArgsT,
+  ctx: ToolContext,
+): Promise<MemallocHeapsOutput> {
+  const variant = variantHash("memalloc_heaps", {});
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as MemallocHeapsOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "allocations", file: args.file, view: "heaps" },
+    ctx.runOptions,
+  )) as MemallocHeapsOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doMemallocQuery(
+  args: MemallocQueryArgsT,
+  ctx: ToolContext,
+): Promise<MemallocQueryOutput> {
+  // Queries are not cached — the rule+anchors uniquely identify a call but
+  // results can be massive and the user typically iterates parameters.
+  return (await runTraceDigest(
+    {
+      mode: "allocations",
+      file: args.file,
+      view: "query",
+      rule: args.rule,
+      timeA: args.timeA,
+      timeB: args.timeB,
+      limit: args.limit,
+      queryTimeoutMs: args.query_timeout_ms,
+    },
+    ctx.runOptions,
+  )) as MemallocQueryOutput;
 }
 
 // Was `doThreads` in v0.3 — renamed to match the new `trace_cpu_threads`

@@ -103,6 +103,19 @@ export interface OverviewCpu {
   events: DigestEvent[];
 }
 
+export interface OverviewMemory {
+  tracker_count: number;
+  tag_set_count: number;
+  tag_count: number;
+}
+
+export interface OverviewMemalloc {
+  timeline_points: number;
+  peak_bytes: number;
+  alloc_event_total: number;
+  free_event_total: number;
+}
+
 export interface OverviewOutput {
   file: string;
   mode: "overview";
@@ -110,8 +123,10 @@ export interface OverviewOutput {
   /** Channel names present in the trace (regardless of enabled state). */
   channels: string[];
   cpu?: OverviewCpu;
-  // gpu, memory, memalloc, counters, logs, bookmarks, regions land in
-  // subsequent passes as those provider blocks come online.
+  memory?: OverviewMemory;
+  memalloc?: OverviewMemalloc;
+  // gpu, counters, logs, bookmarks, regions sub-blocks land in
+  // subsequent passes as those provider summaries come online.
 }
 
 export interface FrameDrillEvent {
@@ -397,6 +412,84 @@ export interface MemorySamplesOutput {
   series: MemorySampleBucket[];
 }
 
+// trace_memalloc_* family — three umbrella views on IAllocationsProvider.
+
+export interface AllocBucket {
+  t_ms: number;
+  min: number;
+  max: number;
+  avg: number;
+  count: number;
+}
+
+export interface MemallocTimelineOutput {
+  file: string;
+  mode: "allocations";
+  view: "timeline";
+  duration_ms: number;
+  has_memalloc: boolean;
+  timeline_points?: number;
+  range_start?: number;
+  range_end?: number;
+  max_total_allocated_memory?: AllocBucket[];
+  max_live_allocations?: AllocBucket[];
+  alloc_events_per_point?: AllocBucket[];
+  free_events_per_point?: AllocBucket[];
+}
+
+export interface MemallocHeap {
+  id: number;
+  parent_id: number;
+  flags: number;
+  name: string;
+  is_root: boolean;
+}
+
+export interface MemallocHeapsOutput {
+  file: string;
+  mode: "allocations";
+  view: "heaps";
+  duration_ms: number;
+  has_memalloc: boolean;
+  heaps: MemallocHeap[];
+  heap_count: number;
+}
+
+export interface AllocationRow {
+  address: number;
+  size: number;
+  alignment: number;
+  start_ms: number;
+  end_ms: number;
+  alloc_thread: number;
+  free_thread: number;
+  alloc_callstack_id: number;
+  free_callstack_id: number;
+  tag: number;
+  root_heap: number;
+  is_heap: boolean;
+  is_swap: boolean;
+}
+
+export interface MemallocQueryOutput {
+  file: string;
+  mode: "allocations";
+  view: "query";
+  duration_ms: number;
+  has_memalloc: boolean;
+  rule: string;
+  time_a: number;
+  time_b: number;
+  query_timeout_ms: number;
+  completed: boolean;
+  total_available: number;
+  truncated: boolean;
+  events: AllocationRow[];
+  /** Only present on a parse failure. */
+  ok?: boolean;
+  error?: string;
+}
+
 // --- Daemon control responses ---
 
 export interface UnloadOutput {
@@ -439,4 +532,7 @@ export type AnyDigestOutput =
   | LogMessagesOutput
   | MemoryTrackersOutput
   | MemoryTagsOutput
-  | MemorySamplesOutput;
+  | MemorySamplesOutput
+  | MemallocTimelineOutput
+  | MemallocHeapsOutput
+  | MemallocQueryOutput;

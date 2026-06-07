@@ -19,6 +19,9 @@ import {
   doGpuFences,
   doGpuQueues,
   doLogMessages,
+  doMemallocHeaps,
+  doMemallocQuery,
+  doMemallocTimeline,
   doMemorySamples,
   doMemoryTags,
   doMemoryTrackers,
@@ -375,5 +378,39 @@ describe("v0.2 tools", () => {
     expect(r.found).toBe(true);
     expect(r.series.length).toBeGreaterThan(0);
     expect(r.series[0]!.avg).toBeGreaterThan(0);
+  });
+
+  it("doMemallocTimeline: returns four aggregate series", async () => {
+    const cache = new TraceCache(3);
+    const r = await doMemallocTimeline({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.view).toBe("timeline");
+    expect(r.has_memalloc).toBe(true);
+    expect(r.max_total_allocated_memory!.length).toBeGreaterThan(0);
+    expect(r.max_live_allocations!.length).toBeGreaterThan(0);
+    expect(r.alloc_events_per_point!.length).toBeGreaterThan(0);
+    expect(r.free_events_per_point!.length).toBeGreaterThan(0);
+  });
+
+  it("doMemallocHeaps: returns heap tree with root + nested entries", async () => {
+    const cache = new TraceCache(3);
+    const r = await doMemallocHeaps({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.view).toBe("heaps");
+    expect(r.heaps.length).toBeGreaterThan(0);
+    const root = r.heaps.find((h) => h.is_root);
+    expect(root).toBeDefined();
+    const child = r.heaps.find((h) => !h.is_root);
+    expect(child?.parent_id).toBeGreaterThanOrEqual(0);
+  });
+
+  it("doMemallocQuery: returns AllocationRow events + completed flag", async () => {
+    const r = await doMemallocQuery(
+      { file: FIXTURE_TRACE, rule: "aAf", timeA: 5000.0 },
+      { cache: new TraceCache(3), runOptions: { binary: MOCK_BIN } },
+    );
+    expect(r.view).toBe("query");
+    expect(r.rule).toBe("aAf");
+    expect(r.completed).toBe(true);
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(r.events[0]!.size).toBeGreaterThan(0);
   });
 });

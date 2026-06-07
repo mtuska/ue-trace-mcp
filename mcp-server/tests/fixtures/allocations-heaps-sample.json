@@ -1,0 +1,15 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "allocations",
+  "view": "heaps",
+  "duration_ms": 16800.5,
+  "has_memalloc": true,
+  "heaps": [
+    { "id": 1, "parent_id": -1, "flags": 0, "name": "SystemMemory",   "is_root": true  },
+    { "id": 2, "parent_id": -1, "flags": 1, "name": "VideoMemory",    "is_root": true  },
+    { "id": 10, "parent_id": 1, "flags": 0, "name": "RenderTargets", "is_root": false },
+    { "id": 11, "parent_id": 1, "flags": 0, "name": "Meshes",        "is_root": false },
+    { "id": 12, "parent_id": 2, "flags": 0, "name": "Textures",      "is_root": false }
+  ],
+  "heap_count": 5
+}

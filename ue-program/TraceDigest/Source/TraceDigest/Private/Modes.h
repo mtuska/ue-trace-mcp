@@ -38,7 +38,8 @@ namespace Modes
 	void RunBookmarks(const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
 	void RunRegions  (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
 	void RunLogs     (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
-	void RunMemory   (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
+	void RunMemory     (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
+	void RunAllocations(const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
 }
 
 } // namespace TraceDigest
