@@ -8,3 +8,8 @@ coverage/
 # in for the npm package; if you copy it locally for a manual publish,
 # we don't want a duplicate landing in git.
 LICENSE
+
+# Integrity manifest for the lazy-downloaded TraceDigest binary. Generated
+# by the release workflow from SHA256SUMS just before `npm publish`, never
+# committed to git — the source of truth is the per-release artifact set.
+binaries.json

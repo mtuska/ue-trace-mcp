@@ -11,28 +11,25 @@ import { fileURLToPath } from "node:url";
 /**
  * Resolve a usable TraceDigest binary path. On first run for a given package
  * version, downloads the matching binary from GitHub Releases into a per-user
- * cache directory after verifying its SHA-256 against the SHA256SUMS file
- * attached to the same release.
+ * cache directory after verifying its SHA-256 against a manifest baked into
+ * this npm package at publish time.
+ *
+ * Trust chain:
+ *   npm package (signed via --provenance) → binaries.json (in the package) →
+ *   GitHub release archive (SHA-256 verified against binaries.json)
+ *
+ * Note this is stronger than fetching a sibling SHA256SUMS from the release:
+ * because the manifest lives inside the npm-provenance-signed package, an
+ * attacker who could swap both the archive and a sibling SUMS file on the
+ * GitHub side would still fail the local hash check.
  *
  * Resolution order:
  *   1. `TRACE_DIGEST_BIN` env var if set — escape hatch for devs running a
  *      locally-built binary, or for users on platforms we don't ship yet.
  *   2. Cached binary at `$UE_TRACE_CACHE_DIR/<version>/<binary>` (default
  *      cache root: `~/.cache/ue-trace-mcp/`).
- *   3. Download + checksum-verify + extract from
- *      `https://github.com/mtuska/ue-trace-mcp/releases/download/v<version>/
- *       TraceDigest-v<version>-ue<UE_BRANCH>-<slug>.<ext>`
- *
- * The npm package version IS the source of truth for which binary to fetch —
- * version-locking the TS server to its matching native artifact happens
- * automatically because `npx @mtuska/ue-trace-mcp@0.3.1` resolves both pieces
- * from the same `0.3.1` tag.
+ *   3. Download + checksum-verify + extract.
  */
-
-// Engine branch the binaries were built against. Update this in lockstep with
-// .github/workflows/release.yml's `ue_branch` input whenever we move to a new
-// UE version — the filename in the GH release embeds this.
-const UE_BRANCH = "5.7";
 
 // Owner/repo for the releases. Kept here rather than read from package.json
 // `repository.url` to avoid parsing git URL syntax at runtime.
@@ -88,26 +85,62 @@ export function cacheRoot(): string {
   return process.env.UE_TRACE_CACHE_DIR ?? join(homedir(), ".cache", "ue-trace-mcp");
 }
 
-/** Reads the version from this package's own package.json. */
-let cachedVersion: string | undefined;
-export async function packageVersion(): Promise<string> {
-  if (cachedVersion) return cachedVersion;
-  // dist/binary.js is at <pkg>/dist/binary.js, package.json at <pkg>/package.json.
-  // When running from src via tsx, src/binary.ts is at <pkg>/src/binary.ts.
+/** Walks up from this module's URL looking for a package root. */
+async function readPackageFile(name: "package.json" | "binaries.json"): Promise<string | null> {
+  // dist/binary.js is at <pkg>/dist/binary.js; src/binary.ts is at <pkg>/src/binary.ts.
   const here = dirname(fileURLToPath(import.meta.url));
   for (const rel of ["..", "../.."]) {
     try {
-      const raw = await readFile(join(here, rel, "package.json"), "utf8");
-      const pkg = JSON.parse(raw) as { name?: string; version?: string };
-      if (pkg.name?.includes("ue-trace-mcp") && pkg.version) {
-        cachedVersion = pkg.version;
-        return pkg.version;
-      }
+      return await readFile(join(here, rel, name), "utf8");
     } catch {
       /* try next */
     }
   }
+  return null;
+}
+
+/** Reads the version from this package's own package.json. */
+let cachedVersion: string | undefined;
+export async function packageVersion(): Promise<string> {
+  if (cachedVersion) return cachedVersion;
+  const raw = await readPackageFile("package.json");
+  if (raw) {
+    const pkg = JSON.parse(raw) as { name?: string; version?: string };
+    if (pkg.name?.includes("ue-trace-mcp") && pkg.version) {
+      cachedVersion = pkg.version;
+      return pkg.version;
+    }
+  }
   throw new BinaryResolveError("could not read package.json to determine version");
+}
+
+/**
+ * Shape of binaries.json — the integrity manifest baked into the published
+ * npm package by .github/workflows/release.yml. Maps each shipped platform
+ * slug to its release-archive filename and expected SHA-256.
+ */
+export interface BinariesManifest {
+  version: string;
+  binaries: Record<
+    "linux-x64" | "windows-x64",
+    { filename: string; sha256: string } | undefined
+  >;
+}
+
+let cachedManifest: BinariesManifest | undefined;
+export async function readBinariesManifest(): Promise<BinariesManifest> {
+  if (cachedManifest) return cachedManifest;
+  const raw = await readPackageFile("binaries.json");
+  if (!raw) {
+    throw new BinaryResolveError(
+      "binaries.json is missing from this package",
+      "This usually means you're running from a source checkout. " +
+        "Either build TraceDigest locally and set TRACE_DIGEST_BIN, or install " +
+        "the published @mtuska/ue-trace-mcp package which ships the manifest.",
+    );
+  }
+  cachedManifest = JSON.parse(raw) as BinariesManifest;
+  return cachedManifest;
 }
 
 async function exists(p: string): Promise<boolean> {
@@ -163,35 +196,10 @@ async function downloadFile(url: string, dest: string): Promise<void> {
   await pipeline(Readable.fromWeb(res.body as never), createWriteStream(dest));
 }
 
-async function downloadText(url: string): Promise<string> {
-  const res = await fetchAllowed(url);
-  return res.text();
-}
-
 async function sha256OfFile(path: string): Promise<string> {
   const hash = createHash("sha256");
   await pipeline(createReadStream(path), hash);
   return hash.digest("hex");
-}
-
-/**
- * Look up the expected SHA-256 for `archiveName` in a SHA256SUMS file body.
- * Standard sha256sum format: `<hex>  <filename>` per line. Tolerates `*`
- * binary-mode prefix and missing-filename rows (we match by basename only).
- */
-function expectedHashFromSums(sumsBody: string, archiveName: string): string {
-  for (const raw of sumsBody.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line || line.startsWith("#")) continue;
-    const m = line.match(/^([0-9a-fA-F]{64})\s+\*?(.+?)\s*$/);
-    if (!m) continue;
-    const [, hex, name] = m;
-    if (name === archiveName) return hex!.toLowerCase();
-  }
-  throw new BinaryResolveError(
-    `SHA256SUMS does not contain an entry for ${archiveName}`,
-    `Either the release is incomplete or the package version doesn't match any uploaded artifact.`,
-  );
 }
 
 /**
@@ -277,11 +285,29 @@ export async function ensureBinary(opts: EnsureBinaryOptions = {}): Promise<stri
     return binPath;
   }
 
-  // 3. Download + checksum-verify + extract.
+  // 3. Download + checksum-verify + extract. Filename and expected hash come
+  // from the manifest baked into this npm package — NOT from a sibling file
+  // on the GitHub release. That puts the integrity anchor inside the
+  // provenance-signed package boundary.
+  const manifest = await readBinariesManifest();
+  const entry = manifest.binaries[info.slug];
+  if (!entry) {
+    throw new BinaryResolveError(
+      `binaries.json has no entry for ${info.slug}`,
+      "This package was built without a binary for your platform. Set TRACE_DIGEST_BIN to a locally-built TraceDigest.",
+    );
+  }
+  if (manifest.version !== version) {
+    // Sanity check: package.json and binaries.json should always agree.
+    throw new BinaryResolveError(
+      `package.json version (${version}) does not match binaries.json version (${manifest.version})`,
+      "The npm package is internally inconsistent. Reinstall or report this.",
+    );
+  }
+
   await mkdir(dir, { recursive: true, mode: 0o755 });
-  const archiveName = `TraceDigest-v${version}-ue${UE_BRANCH}-${info.slug}.${info.ext}`;
+  const archiveName = entry.filename;
   const archiveUrl = `${GH_RELEASE_BASE}/v${version}/${archiveName}`;
-  const sumsUrl = `${GH_RELEASE_BASE}/v${version}/SHA256SUMS`;
   const archivePath = join(dir, archiveName);
 
   if (!opts.quiet) {
@@ -289,18 +315,13 @@ export async function ensureBinary(opts: EnsureBinaryOptions = {}): Promise<stri
   }
 
   try {
-    // Pull SHA256SUMS first — fast (small text file) and lets us fail early
-    // if the release is incomplete.
-    const sums = await downloadText(sumsUrl);
-    const expected = expectedHashFromSums(sums, archiveName);
-
     await downloadFile(archiveUrl, archivePath);
 
     const actual = await sha256OfFile(archivePath);
-    if (actual !== expected) {
+    if (actual !== entry.sha256) {
       throw new BinaryResolveError(
         `SHA-256 mismatch for ${archiveName}`,
-        `expected ${expected}, got ${actual}. Possible MITM, CDN tampering, or corrupted download. Refusing to extract.`,
+        `expected ${entry.sha256}, got ${actual}. Possible MITM, CDN tampering, or corrupted download. Refusing to extract.`,
       );
     }
 

@@ -1,6 +1,19 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { cacheRoot, detectPlatform, ensureBinary } from "../src/binary.js";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import {
+  cacheRoot,
+  detectPlatform,
+  ensureBinary,
+  readBinariesManifest,
+} from "../src/binary.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PKG_ROOT = join(__dirname, "..");
+const MANIFEST_PATH = join(PKG_ROOT, "binaries.json");
 
 describe("detectPlatform", () => {
   it("maps linux x64", () => {
@@ -62,5 +75,28 @@ describe("ensureBinary", () => {
     // If this tried to hit the network it would hang or fail; finishing
     // synchronously and returning the env value proves the short-circuit.
     expect(await ensureBinary()).toBe("/path/to/dev-build/TraceDigest");
+  });
+});
+
+describe("readBinariesManifest", () => {
+  it("throws a helpful error when binaries.json is missing", async () => {
+    // binaries.json is gitignored and absent in dev. In CI mid-release it
+    // briefly exists between the bake step and `npm publish` — and the
+    // prepublishOnly hook re-runs the test suite in that window. Skip in
+    // that case rather than try to temporarily move the file.
+    if (existsSync(MANIFEST_PATH)) {
+      return;
+    }
+    await expect(readBinariesManifest()).rejects.toThrow(/binaries\.json is missing/);
+  });
+
+  it("parses a real manifest if one is present", async () => {
+    if (!existsSync(MANIFEST_PATH)) {
+      return;
+    }
+    const m = await readBinariesManifest();
+    expect(m.version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(m.binaries["linux-x64"]?.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(m.binaries["windows-x64"]?.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 });

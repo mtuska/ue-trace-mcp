@@ -8,7 +8,7 @@
   "bin": {
     "ue-trace-mcp": "dist/index.js"
   },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "README.md", "binaries.json"],
   "engines": {
     "node": ">=20"
   },

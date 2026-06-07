@@ -115,10 +115,9 @@ jobs:
             exit 1
           fi
 
-      # Compute SHA-256 over each release artifact. The MCP package's
-      # `ensureBinary()` fetches SHA256SUMS first, verifies the downloaded
-      # archive against it, and refuses to extract on mismatch — closing the
-      # MITM / asset-swap attack vector on the lazy-download path.
+      # Compute SHA-256 over each release artifact. SHA256SUMS gets attached
+      # to the GitHub release as a convenience for users downloading the
+      # binary directly (without npx).
       - name: Generate SHA256SUMS
         run: |
           (cd artifacts && find . -type f \( -name '*.tar.gz' -o -name '*.zip' \) \
@@ -128,6 +127,39 @@ jobs:
           sed -i 's|  \./[^/]*/|  |' SHA256SUMS
           echo "---SHA256SUMS---"
           cat SHA256SUMS
+
+      # Bake the expected hashes into the npm package itself, before publish.
+      # This anchors the integrity chain in the npm-provenance-signed package
+      # rather than in the same GitHub channel as the archive — closing the
+      # "MITM swaps both files together" gap that an out-of-band SHA256SUMS
+      # would have. binary.ts reads filename + sha256 from binaries.json
+      # instead of constructing them and fetching a sibling SUMS file.
+      - name: Bake binary hashes into npm package
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, pathlib
+          version = os.environ["VERSION"]
+          out = {"version": version, "binaries": {}}
+          for line in pathlib.Path("SHA256SUMS").read_text().strip().splitlines():
+              m = re.match(r"^([0-9a-fA-F]{64})\s+\*?(.+)$", line.strip())
+              if not m:
+                  continue
+              sha = m.group(1).lower()
+              name = m.group(2).strip()
+              if "linux-x64" in name and name.endswith(".tar.gz"):
+                  out["binaries"]["linux-x64"] = {"filename": name, "sha256": sha}
+              elif "windows-x64" in name and name.endswith(".zip"):
+                  out["binaries"]["windows-x64"] = {"filename": name, "sha256": sha}
+          missing = [k for k in ("linux-x64", "windows-x64") if k not in out["binaries"]]
+          if missing:
+              raise SystemExit(f"missing entries for: {missing}")
+          pathlib.Path("mcp-server/binaries.json").write_text(
+              json.dumps(out, indent=2) + "\n"
+          )
+          print(json.dumps(out, indent=2))
+          PY
 
       # Order matters: create the GitHub release (with binaries + checksums
       # attached) BEFORE publishing to npm. The npm package's ensureBinary()
