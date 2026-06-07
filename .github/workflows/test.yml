@@ -1,0 +1,61 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel older runs of the same ref when a new push arrives. PR pushes get a
+# fresh run; the previous one (from a force-push or rebase) goes away.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-server:
+    name: mcp-server (node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: mcp-server
+
+    # The TS server uses `process.getuid` and a Unix-socket daemon spawn path,
+    # both POSIX-only. Tests have enableDaemon=false and use a mock binary, so
+    # the daemon code is imported but not exercised — that part is portable.
+    # We test on linux + macos; Windows is out for now since mock-bin.mjs is
+    # invoked as a shebang-bearing executable script that Windows won't honor.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ['20']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: mcp-server/package-lock.json
+
+      - name: install
+        run: npm ci
+
+      - name: typecheck
+        run: npm run lint
+
+      - name: tests
+        run: npm test
+
+      - name: build
+        run: npm run build
+
+      # If `dist/` came out empty or `index.js` got dropped, the pack-and-ship
+      # path is broken even if tests passed. Cheap sanity check.
+      - name: verify dist
+        run: node -e "require('fs').statSync('dist/index.js')"
