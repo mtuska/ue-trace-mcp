@@ -1,0 +1,15 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "task_list",
+  "state": "Completed",
+  "window_start_ms": 0.0,
+  "window_end_ms": 16800.5,
+  "total_tasks_in_trace": 4200,
+  "total_in_window": 1500,
+  "truncated": true,
+  "events": [
+    { "id":  101, "debug_name": "FZombieAi::Tick",         "tracked": true,  "thread_to_execute":  512, "created_ms":  100.2, "started_ms":  100.4, "finished_ms":  100.9, "completed_ms":  100.9, "prerequisite_count": 0, "subsequent_count": 3 },
+    { "id":  102, "debug_name": "ParallelFor.Zombie",      "tracked": true,  "thread_to_execute":  513, "created_ms":  100.5, "started_ms":  100.6, "finished_ms":  101.4, "completed_ms":  101.4, "prerequisite_count": 1, "subsequent_count": 2 },
+    { "id":  103, "debug_name": "Loading.AsyncMaterial",   "tracked": false, "thread_to_execute":  514, "created_ms":  102.0, "started_ms":  102.1, "finished_ms":  104.3, "completed_ms":  104.3, "prerequisite_count": 0, "subsequent_count": 1 }
+  ]
+}

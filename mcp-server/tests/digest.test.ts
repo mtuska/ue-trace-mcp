@@ -29,6 +29,8 @@ import {
   doModules,
   doQuery,
   doStatus,
+  doTaskDrill,
+  doTaskList,
   doOverview,
   doRegionList,
   doTimeline,
@@ -459,5 +461,30 @@ describe("v0.2 tools", () => {
     expect(r.modules.length).toBeGreaterThan(0);
     expect(r.modules[0]!.symbol_stats.discovered).toBeGreaterThanOrEqual(0);
     expect(r.totals?.modules_discovered).toBeGreaterThan(0);
+  });
+
+  it("doTaskList: returns windowed task-graph rows with state filter", async () => {
+    const cache = new TraceCache(3);
+    const r = await doTaskList(
+      { file: FIXTURE_TRACE, state: "Completed", limit: 5 },
+      { cache, runOptions: { binary: MOCK_BIN } },
+    );
+    expect(r.mode).toBe("task_list");
+    expect(r.state).toBe("Completed");
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(r.events[0]!.debug_name.length).toBeGreaterThan(0);
+    expect(r.events[0]!.prerequisite_count).toBeGreaterThanOrEqual(0);
+  });
+
+  it("doTaskDrill: returns full FTaskInfo with relation arrays", async () => {
+    const r = await doTaskDrill(
+      { file: FIXTURE_TRACE, task_id: 102 },
+      { cache: new TraceCache(3), runOptions: { binary: MOCK_BIN } },
+    );
+    expect(r.mode).toBe("task_drill");
+    expect(r.found).toBe(true);
+    expect(r.timestamps?.started_ms).toBeGreaterThan(0);
+    expect(Array.isArray(r.prerequisites)).toBe(true);
+    expect(Array.isArray(r.subsequents)).toBe(true);
   });
 });

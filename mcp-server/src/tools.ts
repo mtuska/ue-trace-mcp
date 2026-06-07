@@ -21,6 +21,8 @@ import type {
   MemallocTimelineArgsT,
   ModulesArgsT,
   QueryArgsT,
+  TaskDrillArgsT,
+  TaskListArgsT,
   MemorySamplesArgsT,
   MemoryTagsArgsT,
   MemoryTrackersArgsT,
@@ -50,6 +52,8 @@ import type {
   MemallocTimelineOutput,
   ModulesOutput,
   QueryOutput,
+  TaskDrillOutput,
+  TaskListOutput,
   MemorySamplesOutput,
   MemoryTagsOutput,
   MemoryTrackersOutput,
@@ -456,6 +460,37 @@ export async function doModules(args: ModulesArgsT, ctx: ToolContext): Promise<M
   )) as ModulesOutput;
   await ctx.cache.put(args.file, variant, out);
   return out;
+}
+
+export async function doTaskList(args: TaskListArgsT, ctx: ToolContext): Promise<TaskListOutput> {
+  const variant = variantHash("task_list", {
+    state: args.state,
+    frameRange: args.frameRange,
+    limit: args.limit,
+  });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as TaskListOutput;
+
+  const out = (await runTraceDigest(
+    {
+      mode: "task_list",
+      file: args.file,
+      state: args.state,
+      frameRange: args.frameRange,
+      limit: args.limit,
+    },
+    ctx.runOptions,
+  )) as TaskListOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+// task_drill bypasses cache — per-id lookups have no cache value.
+export async function doTaskDrill(args: TaskDrillArgsT, ctx: ToolContext): Promise<TaskDrillOutput> {
+  return (await runTraceDigest(
+    { mode: "task_drill", file: args.file, taskId: args.task_id },
+    ctx.runOptions,
+  )) as TaskDrillOutput;
 }
 
 export async function doQuery(args: QueryArgsT, ctx: ToolContext): Promise<QueryOutput> {

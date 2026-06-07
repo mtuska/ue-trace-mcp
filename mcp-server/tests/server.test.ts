@@ -58,6 +58,8 @@ describe("MCP server wiring", () => {
       "trace_query",
       "trace_region_list",
       "trace_status",
+      "trace_task_drill",
+      "trace_task_list",
       "trace_timeline",
       "trace_unload",
     ]);

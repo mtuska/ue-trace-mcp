@@ -372,6 +372,42 @@ export const ModulesArgs = z.object({
 });
 export type ModulesArgsT = z.infer<typeof ModulesArgs>;
 
+// trace_task_list — windowed enumeration of UE task-graph tasks. State
+// filter mirrors UE's ETaskEnumerationOption. Production traces can have
+// 10⁶–10⁷ tasks so windowing via frameRange + cap via limit is the norm.
+export const TaskListArgs = z.object({
+  file,
+  state: z
+    .enum([
+      "Alive",
+      "Launched",
+      "Active",
+      "WaitingForPrerequisites",
+      "Queued",
+      "Executing",
+      "WaitingForNested",
+      "Completed",
+    ])
+    .optional()
+    .describe("Filter tasks by state. Default 'Alive' (= every task seen in the window)."),
+  frameRange: z
+    .tuple([z.number().int().nonnegative(), z.number().int().positive()])
+    .optional()
+    .describe("Restrict to Game-thread frames [A, B). Default: full trace duration."),
+  limit: z.number().int().positive().optional().describe("Cap returned tasks. Default 500."),
+});
+export type TaskListArgsT = z.infer<typeof TaskListArgs>;
+
+// trace_task_drill — full info on one task: every timestamp, every
+// thread id, plus the four relation arrays (prerequisites, subsequents,
+// parent_tasks, nested_tasks). Use after task_list to investigate a
+// specific task's lifecycle and dependencies.
+export const TaskDrillArgs = z.object({
+  file,
+  task_id: z.number().int().nonnegative().describe("TaskTrace::FId from a task_list row."),
+});
+export type TaskDrillArgsT = z.infer<typeof TaskDrillArgs>;
+
 // trace_query — intent-dispatched escape hatch. `intent` is z.string() (not
 // an enum) so the C++ side can add new intents without forcing a schema
 // bump. Use intent="list" to discover the registry.

@@ -28,6 +28,8 @@ import {
   doMemoryTrackers,
   doModules,
   doOverview,
+  doTaskDrill,
+  doTaskList,
   doRegionList,
   doStatus,
   doTimeline,
@@ -55,6 +57,8 @@ import {
   MemallocTimelineArgs,
   ModulesArgs,
   QueryArgs,
+  TaskDrillArgs,
+  TaskListArgs,
   MemorySamplesArgs,
   MemoryTagsArgs,
   MemoryTrackersArgs,
@@ -417,6 +421,27 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
         "Pair with trace_callstack to diagnose why a frame's symbol came back unresolved.",
       schema: ModulesArgs,
       handler: (a, c) => doModules(a, c),
+    },
+    {
+      name: "trace_task_list",
+      description:
+        "Windowed enumeration of UE task-graph tasks. Filter by `state` " +
+        "(Alive/Launched/Active/WaitingForPrerequisites/Queued/Executing/WaitingForNested/Completed) " +
+        "and time via frameRange. Each row carries id, debug_name, thread, key timestamps, and " +
+        "prerequisite/subsequent counts. Production traces have 10⁶–10⁷ tasks — `truncated:true` " +
+        "is normal; drill into specific ids with trace_task_drill.",
+      schema: TaskListArgs,
+      handler: (a, c) => doTaskList(a, c),
+    },
+    {
+      name: "trace_task_drill",
+      description:
+        "Full FTaskInfo for one task id from trace_task_list: every timestamp (created/launched/" +
+        "scheduled/started/finished/completed/destroyed), every thread id, and the four relation " +
+        "arrays (prerequisites, subsequents, parent_tasks, nested_tasks). Use to investigate " +
+        "scheduling stalls and dependency chains.",
+      schema: TaskDrillArgs,
+      handler: (a, c) => doTaskDrill(a, c),
     },
   ];
 

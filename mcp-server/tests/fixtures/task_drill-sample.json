@@ -1,0 +1,36 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "task_drill",
+  "task_id": 102,
+  "found": true,
+  "debug_name": "ParallelFor.Zombie",
+  "tracked": true,
+  "thread_to_execute": 513,
+  "task_size": 256,
+  "timestamps": {
+    "created_ms":   100.5,
+    "launched_ms":  100.5,
+    "scheduled_ms": 100.6,
+    "started_ms":   100.6,
+    "finished_ms":  101.4,
+    "completed_ms": 101.4,
+    "destroyed_ms": 101.5
+  },
+  "threads": {
+    "created":   1,
+    "launched":  1,
+    "scheduled": 1,
+    "started":   2,
+    "completed": 2,
+    "destroyed": 2
+  },
+  "prerequisites": [
+    { "id": 101, "time_ms": 100.5, "thread_id": 1 }
+  ],
+  "subsequents": [
+    { "id": 104, "time_ms": 101.4, "thread_id": 2 },
+    { "id": 105, "time_ms": 101.4, "thread_id": 2 }
+  ],
+  "parent_tasks": [],
+  "nested_tasks": []
+}

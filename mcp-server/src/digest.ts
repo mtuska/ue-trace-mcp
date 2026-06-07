@@ -49,7 +49,9 @@ export interface DigestArgsRaw {
     | "allocations"
     | "query"
     | "callstack"
-    | "modules";
+    | "modules"
+    | "task_list"
+    | "task_drill";
   prefix?: string;
   event?: string;
   limit?: number;
@@ -75,6 +77,8 @@ export interface DigestArgsRaw {
   intent?: string;
   params?: string;  // JSON string forwarded to C++ for parse
   callstackId?: number;
+  taskId?: number;
+  state?: string;
 }
 
 export class TraceDigestError extends Error {
@@ -138,6 +142,8 @@ function buildBinaryArgv(args: DigestArgsRaw, outPath?: string): string[] {
     argv.push(`-params-b64=${Buffer.from(args.params, "utf8").toString("base64")}`);
   }
   if (args.callstackId !== undefined) argv.push(`-callstack-id=${args.callstackId}`);
+  if (args.taskId !== undefined) argv.push(`-task-id=${args.taskId}`);
+  if (args.state) argv.push(`-state=${args.state}`);
 
   if (outPath) argv.push(`-out=${outPath}`);
   return argv;
@@ -193,6 +199,8 @@ async function runViaDaemon(
     parts.push(`-params-b64=${Buffer.from(args.params, "utf8").toString("base64")}`);
   }
   if (args.callstackId !== undefined) parts.push(`-callstack-id=${args.callstackId}`);
+  if (args.taskId !== undefined) parts.push(`-task-id=${args.taskId}`);
+  if (args.state) parts.push(`-state=${args.state}`);
 
   const data = await registry.query(args.file, parts.join(" "));
   return data as AnyDigestOutput;

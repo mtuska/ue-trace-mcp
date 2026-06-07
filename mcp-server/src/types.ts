@@ -548,6 +548,71 @@ export interface ModulesOutput {
   modules: ModuleRow[];
 }
 
+// trace_task_list — windowed task-graph enumeration.
+export interface TaskListRow {
+  id: number;
+  debug_name: string;
+  tracked: boolean;
+  thread_to_execute: number;
+  created_ms: number;
+  started_ms: number;
+  finished_ms: number;
+  completed_ms: number;
+  prerequisite_count: number;
+  subsequent_count: number;
+}
+
+export interface TaskListOutput {
+  file: string;
+  mode: "task_list";
+  state: string;
+  window_start_ms: number;
+  window_end_ms: number;
+  total_tasks_in_trace?: number;
+  total_in_window: number;
+  truncated: boolean;
+  events: TaskListRow[];
+}
+
+// trace_task_drill — full FTaskInfo for one task, plus its relation arrays.
+export interface TaskRelation {
+  id: number;
+  time_ms: number;
+  thread_id: number;
+}
+
+export interface TaskDrillOutput {
+  file: string;
+  mode: "task_drill";
+  task_id: number;
+  found: boolean;
+  debug_name?: string;
+  tracked?: boolean;
+  thread_to_execute?: number;
+  task_size?: number;
+  timestamps?: {
+    created_ms: number;
+    launched_ms: number;
+    scheduled_ms: number;
+    started_ms: number;
+    finished_ms: number;
+    completed_ms: number;
+    destroyed_ms: number;
+  };
+  threads?: {
+    created: number;
+    launched: number;
+    scheduled: number;
+    started: number;
+    completed: number;
+    destroyed: number;
+  };
+  prerequisites?: TaskRelation[];
+  subsequents?: TaskRelation[];
+  parent_tasks?: TaskRelation[];
+  nested_tasks?: TaskRelation[];
+}
+
 // trace_query — open-ended envelope. The `events` array shape varies per
 // intent; intent-specific top-level fields land alongside it. We type the
 // rows as `Record<string, unknown>` because of that variability.
@@ -632,4 +697,6 @@ export type AnyDigestOutput =
   | MemallocQueryOutput
   | QueryOutput
   | CallstackOutput
-  | ModulesOutput;
+  | ModulesOutput
+  | TaskListOutput
+  | TaskDrillOutput;

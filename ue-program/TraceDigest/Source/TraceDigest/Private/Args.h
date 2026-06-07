@@ -29,6 +29,8 @@ enum class EMode : uint8
 	Query,     // Intent-dispatched cross-cutting queries (trace_query)
 	Callstack, // Resolve one CallstackId to symbolicated frames
 	Modules,   // List discovered modules + symbol-resolution stats
+	TaskList,  // Windowed enumeration of tasks with state filter
+	TaskDrill, // Full info on one task (prerequisites/subsequents/parents/nested)
 };
 
 struct FArgs
@@ -67,6 +69,10 @@ struct FArgs
 
 	// v0.5: callstack/symbolication
 	uint32 CallstackId = 0;  // -callstack-id=<uint32> for trace_callstack lookup
+
+	// v0.5: tasks
+	uint64 TaskId = ~uint64(0);  // -task-id=<uint64> for trace_task_drill (TaskTrace::InvalidId default)
+	FString State;               // -state=<Alive|Launched|Active|WaitingForPrerequisites|Queued|Executing|WaitingForNested|Completed>
 
 	// Daemon mode (Program target only). The Program loads the trace once and
 	// services repeated queries over a Unix socket until idle timeout or

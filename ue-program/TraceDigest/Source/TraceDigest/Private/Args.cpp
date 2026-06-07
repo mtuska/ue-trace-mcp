@@ -33,6 +33,8 @@ const TCHAR* FArgs::ModeName(EMode M)
 		case EMode::Query:     return TEXT("query");
 		case EMode::Callstack: return TEXT("callstack");
 		case EMode::Modules:   return TEXT("modules");
+		case EMode::TaskList:  return TEXT("task_list");
+		case EMode::TaskDrill: return TEXT("task_drill");
 	}
 	return TEXT("digest");
 }
@@ -62,6 +64,8 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 		else if (ModeStr.Equals(TEXT("query"),     ESearchCase::IgnoreCase)) { Mode = EMode::Query;     }
 		else if (ModeStr.Equals(TEXT("callstack"), ESearchCase::IgnoreCase)) { Mode = EMode::Callstack; }
 		else if (ModeStr.Equals(TEXT("modules"),   ESearchCase::IgnoreCase)) { Mode = EMode::Modules;   }
+		else if (ModeStr.Equals(TEXT("task_list"), ESearchCase::IgnoreCase)) { Mode = EMode::TaskList;  }
+		else if (ModeStr.Equals(TEXT("task_drill"),ESearchCase::IgnoreCase)) { Mode = EMode::TaskDrill; }
 		else
 		{
 			OutError = FString::Printf(TEXT("unknown -mode='%s'"), *ModeStr);
@@ -115,6 +119,8 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 	FParse::Value(CmdLine, TEXT("-query-timeout-ms="), QueryTimeoutMs);
 	if (QueryTimeoutMs <= 0) QueryTimeoutMs = 60000;
 	FParse::Value(CmdLine, TEXT("-callstack-id="), CallstackId);
+	FParse::Value(CmdLine, TEXT("-task-id="),      TaskId);
+	FParse::Value(CmdLine, TEXT("-state="),        State);
 	if (Buckets <= 0) Buckets = 256;
 	if (Channel.IsEmpty()) Channel = TEXT("cpu");
 
@@ -227,6 +233,11 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 	if (Mode == EMode::Callstack && CallstackId == 0)
 	{
 		OutError = TEXT("-mode=callstack requires -callstack-id=<uint32> (id 0 is reserved for the empty callstack)");
+		return false;
+	}
+	if (Mode == EMode::TaskDrill && TaskId == ~uint64(0))
+	{
+		OutError = TEXT("-mode=task_drill requires -task-id=<uint64>");
 		return false;
 	}
 
