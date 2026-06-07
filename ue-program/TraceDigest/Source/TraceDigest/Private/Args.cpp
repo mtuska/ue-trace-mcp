@@ -27,6 +27,7 @@ const TCHAR* FArgs::ModeName(EMode M)
 		case EMode::Bookmarks: return TEXT("bookmarks");
 		case EMode::Regions:   return TEXT("regions");
 		case EMode::Logs:      return TEXT("logs");
+		case EMode::Memory:    return TEXT("memory");
 	}
 	return TEXT("digest");
 }
@@ -51,6 +52,7 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 		else if (ModeStr.Equals(TEXT("bookmarks"), ESearchCase::IgnoreCase)) { Mode = EMode::Bookmarks; }
 		else if (ModeStr.Equals(TEXT("regions"),   ESearchCase::IgnoreCase)) { Mode = EMode::Regions;   }
 		else if (ModeStr.Equals(TEXT("logs"),      ESearchCase::IgnoreCase)) { Mode = EMode::Logs;      }
+		else if (ModeStr.Equals(TEXT("memory"),    ESearchCase::IgnoreCase)) { Mode = EMode::Memory;    }
 		else
 		{
 			OutError = FString::Printf(TEXT("unknown -mode='%s'"), *ModeStr);
@@ -75,6 +77,8 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 	FParse::Value(CmdLine, TEXT("-category="),   Category);
 	FParse::Value(CmdLine, TEXT("-verbosity="),  Verbosity);
 	FParse::Value(CmdLine, TEXT("-grep="),       Grep);
+	FParse::Value(CmdLine, TEXT("-tracker="),    Tracker);
+	FParse::Value(CmdLine, TEXT("-tag="),        Tag);
 	FParse::Value(CmdLine, TEXT("-buckets="),    Buckets);
 	FParse::Value(CmdLine, TEXT("-queue="),      Queue);
 	if (Buckets <= 0) Buckets = 256;
@@ -145,6 +149,22 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 		// Series mode — counter name supplied implies the series view; no
 		// extra validation here. Catalogue mode (no -counter=) has no
 		// required args.
+	}
+	if (Mode == EMode::Memory)
+	{
+		if (View.IsEmpty()) View = TEXT("trackers");
+		if (!View.Equals(TEXT("trackers"), ESearchCase::IgnoreCase)
+			&& !View.Equals(TEXT("tags"), ESearchCase::IgnoreCase)
+			&& !View.Equals(TEXT("samples"), ESearchCase::IgnoreCase))
+		{
+			OutError = FString::Printf(TEXT("-mode=memory unknown -view='%s' (expected trackers|tags|samples)"), *View);
+			return false;
+		}
+		if (View.Equals(TEXT("samples"), ESearchCase::IgnoreCase) && Tag.IsEmpty())
+		{
+			OutError = TEXT("-mode=memory -view=samples requires -tag=<id|name>");
+			return false;
+		}
 	}
 
 	// v0.4 channel validation for agnostic verbs. Compare ships cpu-only in

@@ -331,6 +331,70 @@ export interface LogMessagesOutput {
   events: LogEvent[];
 }
 
+// trace_memory_* family — three umbrella views on IMemoryProvider.
+
+export interface MemoryTracker {
+  id: number;
+  name: string;
+}
+
+export interface MemoryTagSet {
+  id: number;
+  name: string;
+}
+
+export interface MemoryTrackersOutput {
+  file: string;
+  mode: "memory";
+  view: "trackers";
+  duration_ms: number;
+  has_memory: boolean;
+  trackers: MemoryTracker[];
+  tag_sets: MemoryTagSet[];
+}
+
+export interface MemoryTagRow {
+  id: number;
+  parent_id: number;
+  tag_set_id: number;
+  trackers_bitmask: number;
+  name: string;
+}
+
+export interface MemoryTagsOutput {
+  file: string;
+  mode: "memory";
+  view: "tags";
+  duration_ms: number;
+  has_memory: boolean;
+  tracker_filter: number;
+  tag_filter: number;
+  tags: MemoryTagRow[];
+}
+
+export interface MemorySampleBucket {
+  t_ms: number;
+  min: number;
+  max: number;
+  avg: number;
+  count: number;
+}
+
+export interface MemorySamplesOutput {
+  file: string;
+  mode: "memory";
+  view: "samples";
+  duration_ms: number;
+  has_memory: boolean;
+  tracker_id: number;
+  tag_id: number;
+  tag_arg: string;
+  buckets: number;
+  found: boolean;
+  total_samples?: number;
+  series: MemorySampleBucket[];
+}
+
 // --- Daemon control responses ---
 
 export interface UnloadOutput {
@@ -370,4 +434,7 @@ export type AnyDigestOutput =
   | CounterSeriesOutput
   | BookmarkListOutput
   | RegionListOutput
-  | LogMessagesOutput;
+  | LogMessagesOutput
+  | MemoryTrackersOutput
+  | MemoryTagsOutput
+  | MemorySamplesOutput;

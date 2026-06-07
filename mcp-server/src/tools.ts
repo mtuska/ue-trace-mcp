@@ -15,6 +15,9 @@ import type {
   GpuFencesArgsT,
   GpuQueuesArgsT,
   LogMessagesArgsT,
+  MemorySamplesArgsT,
+  MemoryTagsArgsT,
+  MemoryTrackersArgsT,
   OverviewArgsT,
   RegionListArgsT,
   StatusArgsT,
@@ -35,6 +38,9 @@ import type {
   GpuFencesOutput,
   GpuQueuesOutput,
   LogMessagesOutput,
+  MemorySamplesOutput,
+  MemoryTagsOutput,
+  MemoryTrackersOutput,
   OverviewOutput,
   RegionListOutput,
   StatusOutput,
@@ -326,6 +332,62 @@ export async function doLogMessages(
     },
     ctx.runOptions,
   )) as LogMessagesOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doMemoryTrackers(
+  args: MemoryTrackersArgsT,
+  ctx: ToolContext,
+): Promise<MemoryTrackersOutput> {
+  const variant = variantHash("memory_trackers", {});
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as MemoryTrackersOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "memory", file: args.file, view: "trackers" },
+    ctx.runOptions,
+  )) as MemoryTrackersOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doMemoryTags(args: MemoryTagsArgsT, ctx: ToolContext): Promise<MemoryTagsOutput> {
+  const variant = variantHash("memory_tags", { tracker: args.tracker, tag: args.tag });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as MemoryTagsOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "memory", file: args.file, view: "tags", tracker: args.tracker, tag: args.tag },
+    ctx.runOptions,
+  )) as MemoryTagsOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doMemorySamples(
+  args: MemorySamplesArgsT,
+  ctx: ToolContext,
+): Promise<MemorySamplesOutput> {
+  const variant = variantHash("memory_samples", {
+    tracker: args.tracker,
+    tag: args.tag,
+    buckets: args.buckets,
+  });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as MemorySamplesOutput;
+
+  const out = (await runTraceDigest(
+    {
+      mode: "memory",
+      file: args.file,
+      view: "samples",
+      tracker: args.tracker,
+      tag: args.tag,
+      buckets: args.buckets,
+    },
+    ctx.runOptions,
+  )) as MemorySamplesOutput;
   await ctx.cache.put(args.file, variant, out);
   return out;
 }

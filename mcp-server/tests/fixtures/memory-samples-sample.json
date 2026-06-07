@@ -1,0 +1,19 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "memory",
+  "view": "samples",
+  "duration_ms": 16800.5,
+  "has_memory": true,
+  "tracker_id": 0,
+  "tag_id": 11,
+  "tag_arg": "Mesh",
+  "buckets": 4,
+  "found": true,
+  "total_samples": 420,
+  "series": [
+    { "t_ms":  2100.0, "min": 104857600, "max": 117440512, "avg": 110100480.0, "count": 105 },
+    { "t_ms":  6300.0, "min": 117440512, "max": 134217728, "avg": 125000000.0, "count": 105 },
+    { "t_ms": 10500.0, "min": 134217728, "max": 167772160, "avg": 150000000.0, "count": 105 },
+    { "t_ms": 14700.0, "min": 167772160, "max": 192937984, "avg": 180000000.0, "count": 105 }
+  ]
+}

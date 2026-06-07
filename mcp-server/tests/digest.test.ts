@@ -19,6 +19,9 @@ import {
   doGpuFences,
   doGpuQueues,
   doLogMessages,
+  doMemorySamples,
+  doMemoryTags,
+  doMemoryTrackers,
   doOverview,
   doRegionList,
   doTimeline,
@@ -341,5 +344,36 @@ describe("v0.2 tools", () => {
     expect(r.events.length).toBeGreaterThan(0);
     const error = r.events.find((e) => e.verbosity === "error");
     expect(error).toBeDefined();
+  });
+
+  it("doMemoryTrackers: lists LLM trackers + tag sets", async () => {
+    const cache = new TraceCache(3);
+    const r = await doMemoryTrackers({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.view).toBe("trackers");
+    expect(r.has_memory).toBe(true);
+    expect(r.trackers.length).toBeGreaterThan(0);
+    expect(r.tag_sets.length).toBeGreaterThan(0);
+  });
+
+  it("doMemoryTags: returns flat tag list with parent_id", async () => {
+    const cache = new TraceCache(3);
+    const r = await doMemoryTags({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.view).toBe("tags");
+    expect(r.tags.length).toBeGreaterThan(0);
+    // Every tag has parent_id (0 = root).
+    const root = r.tags.find((t) => t.parent_id === 0);
+    expect(root).toBeDefined();
+  });
+
+  it("doMemorySamples: returns time-bucketed per-tag samples", async () => {
+    const cache = new TraceCache(3);
+    const r = await doMemorySamples(
+      { file: FIXTURE_TRACE, tag: "Mesh" },
+      { cache, runOptions: { binary: MOCK_BIN } },
+    );
+    expect(r.view).toBe("samples");
+    expect(r.found).toBe(true);
+    expect(r.series.length).toBeGreaterThan(0);
+    expect(r.series[0]!.avg).toBeGreaterThan(0);
   });
 });

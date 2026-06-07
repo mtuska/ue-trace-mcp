@@ -44,7 +44,8 @@ export interface DigestArgsRaw {
     | "counters"
     | "bookmarks"
     | "regions"
-    | "logs";
+    | "logs"
+    | "memory";
   prefix?: string;
   event?: string;
   limit?: number;
@@ -59,6 +60,8 @@ export interface DigestArgsRaw {
   category?: string;
   verbosity?: string;
   grep?: string;
+  tracker?: string;
+  tag?: string;
   buckets?: number;
   queue?: number;
 }
@@ -107,6 +110,8 @@ function buildBinaryArgv(args: DigestArgsRaw, outPath?: string): string[] {
   if (args.category) argv.push(`-category=${args.category}`);
   if (args.verbosity) argv.push(`-verbosity=${args.verbosity}`);
   if (args.grep) argv.push(`-grep=${args.grep}`);
+  if (args.tracker) argv.push(`-tracker=${args.tracker}`);
+  if (args.tag) argv.push(`-tag=${args.tag}`);
   if (args.buckets !== undefined) argv.push(`-buckets=${args.buckets}`);
   if (args.queue !== undefined) argv.push(`-queue=${args.queue}`);
 
@@ -151,6 +156,8 @@ async function runViaDaemon(
   if (args.category) parts.push(`-category=${args.category}`);
   if (args.verbosity) parts.push(`-verbosity=${args.verbosity}`);
   if (args.grep) parts.push(`-grep=${args.grep}`);
+  if (args.tracker) parts.push(`-tracker=${args.tracker}`);
+  if (args.tag) parts.push(`-tag=${args.tag}`);
   if (args.buckets !== undefined) parts.push(`-buckets=${args.buckets}`);
   if (args.queue !== undefined) parts.push(`-queue=${args.queue}`);
 

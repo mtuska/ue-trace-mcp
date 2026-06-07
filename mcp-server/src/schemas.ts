@@ -252,3 +252,41 @@ export const LogMessagesArgs = z.object({
   limit: z.number().int().positive().optional().describe("Cap returned messages. Default 500."),
 });
 export type LogMessagesArgsT = z.infer<typeof LogMessagesArgs>;
+
+// trace_memory_* family (LLM tag tree). Three views, one umbrella mode on
+// the binary side. The TS surface is split so each tool's params shape is
+// tight — `tags` accepts optional tracker/tag focus; `samples` requires
+// tag; `trackers` takes only the file.
+export const MemoryTrackersArgs = z.object({
+  file,
+});
+export type MemoryTrackersArgsT = z.infer<typeof MemoryTrackersArgs>;
+
+export const MemoryTagsArgs = z.object({
+  file,
+  tracker: z.string().optional().describe("Restrict to tags exposed by this tracker (id or name)."),
+  tag: z
+    .string()
+    .optional()
+    .describe(
+      "If supplied, emit only this tag and its ancestor chain (useful for explaining a single LLM bucket).",
+    ),
+});
+export type MemoryTagsArgsT = z.infer<typeof MemoryTagsArgs>;
+
+export const MemorySamplesArgs = z.object({
+  file,
+  tracker: z
+    .string()
+    .optional()
+    .describe("Tracker id or name. Defaults to tracker 0 (UE's 'Default')."),
+  tag: z.string().describe("Tag id or exact name. Use trace_memory_tags to discover."),
+  buckets: z
+    .number()
+    .int()
+    .positive()
+    .max(4096)
+    .optional()
+    .describe("Number of equal-width time buckets. Default 256."),
+});
+export type MemorySamplesArgsT = z.infer<typeof MemorySamplesArgs>;

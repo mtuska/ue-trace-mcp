@@ -1,0 +1,14 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "memory",
+  "view": "trackers",
+  "duration_ms": 16800.5,
+  "has_memory": true,
+  "trackers": [
+    { "id": 0, "name": "Default"  },
+    { "id": 1, "name": "Platform" }
+  ],
+  "tag_sets": [
+    { "id": 0, "name": "Default" }
+  ]
+}

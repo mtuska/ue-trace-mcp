@@ -63,6 +63,7 @@ static int32 RunWithArgs(const TraceDigest::FArgs& Args)
 		case EMode::Bookmarks: Modes::RunBookmarks(*TraceA.GetSession(), Args, Json); break;
 		case EMode::Regions:   Modes::RunRegions  (*TraceA.GetSession(), Args, Json); break;
 		case EMode::Logs:      Modes::RunLogs     (*TraceA.GetSession(), Args, Json); break;
+		case EMode::Memory:    Modes::RunMemory   (*TraceA.GetSession(), Args, Json); break;
 
 		case EMode::Compare:
 		{

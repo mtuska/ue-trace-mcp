@@ -24,6 +24,7 @@ enum class EMode : uint8
 	Bookmarks, // TRACE_BOOKMARK point markers
 	Regions,   // TRACE_BEGIN/END_REGION time spans
 	Logs,      // captured UE_LOG output, windowed + filtered
+	Memory,    // LLM tag tree + per-tag time-bucketed samples (view-dispatched)
 };
 
 struct FArgs
@@ -49,6 +50,8 @@ struct FArgs
 	FString Category;      // -category=<name> for regions/logs filtering
 	FString Verbosity;     // -verbosity=<error|warn|display|log|verbose|all>
 	FString Grep;          // -grep=<substr> for log message filtering
+	FString Tracker;       // -tracker=<id|name> for memory views
+	FString Tag;           // -tag=<id|name> for memory sample queries
 	int32 Buckets = 256;   // -buckets=<N> bins for time-series downsampling
 	int32 Queue = -1;      // -queue=<id> for per-queue GPU views
 

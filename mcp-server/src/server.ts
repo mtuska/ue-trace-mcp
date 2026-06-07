@@ -22,6 +22,9 @@ import {
   doGpuFences,
   doGpuQueues,
   doLogMessages,
+  doMemorySamples,
+  doMemoryTags,
+  doMemoryTrackers,
   doOverview,
   doRegionList,
   doStatus,
@@ -44,6 +47,9 @@ import {
   GpuFencesArgs,
   GpuQueuesArgs,
   LogMessagesArgs,
+  MemorySamplesArgs,
+  MemoryTagsArgs,
+  MemoryTrackersArgs,
   OverviewArgs,
   RegionListArgs,
   StatusArgs,
@@ -264,6 +270,32 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
         "Default cap 500 messages; `truncated:true` flags when more rows existed in the window.",
       schema: LogMessagesArgs,
       handler: (a, c) => doLogMessages(a, c),
+    },
+    {
+      name: "trace_memory_trackers",
+      description:
+        "List LLM memory trackers (Default, Platform, …) and tag sets registered for this trace. " +
+        "Empty trackers list means the LLM channel wasn't captured in this run.",
+      schema: MemoryTrackersArgs,
+      handler: (a, c) => doMemoryTrackers(a, c),
+    },
+    {
+      name: "trace_memory_tags",
+      description:
+        "Enumerate LLM tags as a flat list with parent_id for tree reconstruction. Optional " +
+        "-tracker= filter restricts to tags exposed by one tracker; -tag= focuses on one tag + " +
+        "its ancestor chain (useful for explaining a single LLM bucket).",
+      schema: MemoryTagsArgs,
+      handler: (a, c) => doMemoryTags(a, c),
+    },
+    {
+      name: "trace_memory_samples",
+      description:
+        "Time-bucketed memory samples for one LLM tag from one tracker ({t_ms, min, max, avg, count} " +
+        "per bucket). Default 256 buckets across the trace; default tracker is 0 (UE's 'Default'). " +
+        "Use trace_memory_tags to discover tag ids/names.",
+      schema: MemorySamplesArgs,
+      handler: (a, c) => doMemorySamples(a, c),
     },
   ];
 
