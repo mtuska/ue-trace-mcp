@@ -1,7 +1,8 @@
 {
-  "name": "ue-trace-mcp-server",
-  "version": "0.1.0",
-  "description": "MCP server exposing UE .utrace digest as LLM-queryable tools",
+  "name": "@mtuska/ue-trace-mcp",
+  "version": "0.3.0",
+  "description": "MCP server for LLM-driven Unreal Engine .utrace profiling. Wraps the headless TraceDigest UE Program and manages a long-lived daemon per trace.",
+  "license": "Unlicense",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -11,13 +12,32 @@
   "engines": {
     "node": ">=18"
   },
+  "keywords": [
+    "unreal-engine",
+    "mcp",
+    "profiling",
+    "utrace",
+    "trace",
+    "llm",
+    "performance"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mtuska/ue-trace-mcp.git",
+    "directory": "mcp-server"
+  },
+  "homepage": "https://github.com/mtuska/ue-trace-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/mtuska/ue-trace-mcp/issues"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run lint && npm test && npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

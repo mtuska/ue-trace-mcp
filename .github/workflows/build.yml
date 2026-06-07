@@ -1,0 +1,165 @@
+name: build-program
+
+# Reusable + manually-dispatchable: build the TraceDigest UE Program on
+# Linux + Windows and upload tarballs/zips as workflow artifacts.
+#
+# This workflow is *expensive* — full UE source clone + Setup is 20–40 min
+# per platform — so it does NOT run on every push. Trigger by:
+#   * pushing a `v*` tag (release.yml calls this workflow)
+#   * the "Run workflow" button in the Actions UI (workflow_dispatch)
+#
+# Required secrets:
+#   * UE_TOKEN — Personal Access Token belonging to a GitHub account that
+#                has accepted Epic's EULA and joined the EpicGames org
+#                (without that, EpicGames/UnrealEngine is invisible).
+#                Scope: `repo`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ue_branch:
+        description: 'Branch of EpicGames/UnrealEngine to build against (e.g. 5.7, 5.6, release).'
+        type: string
+        default: '5.7'
+      version_tag:
+        description: 'Version string used in artifact filenames. Default: SHA prefix.'
+        type: string
+        default: ''
+  workflow_call:
+    inputs:
+      ue_branch:
+        type: string
+        default: '5.7'
+      version_tag:
+        type: string
+        default: ''
+    secrets:
+      UE_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+# Resolve a sane version tag to embed in artifact filenames. Falls back to the
+# short commit sha if neither workflow_dispatch nor workflow_call supplied one.
+env:
+  VERSION_TAG: ${{ inputs.version_tag != '' && inputs.version_tag || github.ref_type == 'tag' && github.ref_name || format('sha-{0}', github.sha) }}
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: linux
+            runner: ubuntu-latest
+            platform: Linux
+          - label: windows
+            runner: windows-latest
+            platform: Win64
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+        with:
+          path: src
+
+      # The UE source is gated. We use a manual `git clone` rather than
+      # `actions/checkout` because the latter doesn't make the credential
+      # plumbing easy when the repo lives in a different GitHub org.
+      - name: Clone UnrealEngine (${{ inputs.ue_branch }})
+        env:
+          UE_TOKEN: ${{ secrets.UE_TOKEN }}
+        shell: bash
+        run: |
+          if [ -z "$UE_TOKEN" ]; then
+            echo "::error::UE_TOKEN secret is missing. See .github/workflows/build.yml header for setup."
+            exit 1
+          fi
+          git clone --depth=1 --branch="${{ inputs.ue_branch }}" \
+            "https://x-access-token:${UE_TOKEN}@github.com/EpicGames/UnrealEngine.git" ue
+          git -C ue log -1 --oneline
+
+      - name: Setup UE deps (Linux)
+        if: runner.os == 'Linux'
+        working-directory: ue
+        run: |
+          ./Setup.sh --threads=$(nproc) \
+            --exclude-target-platform=Mac \
+            --exclude-target-platform=IOS \
+            --exclude-target-platform=Android \
+            --exclude-target-platform=TVOS \
+            --exclude-target-platform=VisionOS \
+            --exclude-target-platform=Win64
+
+      - name: Setup UE deps (Windows)
+        if: runner.os == 'Windows'
+        working-directory: ue
+        shell: cmd
+        run: |
+          Setup.bat --threads=%NUMBER_OF_PROCESSORS% ^
+            --exclude-target-platform=Mac ^
+            --exclude-target-platform=IOS ^
+            --exclude-target-platform=Android ^
+            --exclude-target-platform=TVOS ^
+            --exclude-target-platform=VisionOS ^
+            --exclude-target-platform=Linux
+
+      # Drop ue-program into the engine source tree. Symlink on Linux, copy on
+      # Windows (symlinks need Developer Mode or admin, and we don't want to
+      # rely on either being on by default on the runner).
+      - name: Stage ue-program into engine (Linux)
+        if: runner.os == 'Linux'
+        run: ln -s "$GITHUB_WORKSPACE/src/ue-program/TraceDigest" "ue/Engine/Source/Programs/TraceDigest"
+
+      - name: Stage ue-program into engine (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Copy-Item -Recurse src/ue-program/TraceDigest ue/Engine/Source/Programs/TraceDigest
+
+      - name: Build TraceDigest (Linux)
+        if: runner.os == 'Linux'
+        working-directory: ue
+        run: Engine/Build/BatchFiles/Linux/Build.sh TraceDigest ${{ matrix.platform }} Development
+
+      - name: Build TraceDigest (Windows)
+        if: runner.os == 'Windows'
+        working-directory: ue
+        shell: cmd
+        run: Engine\Build\BatchFiles\Build.bat TraceDigest ${{ matrix.platform }} Development
+
+      # Modular link: the .exe / TraceDigest binary loads side-by-side .so/.dll
+      # modules at runtime. Package all of them so the artifact runs anywhere.
+      # Debug symbols (.debug/.sym/.pdb) are intentionally excluded to keep the
+      # archive small; people who need them can rebuild locally.
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cd ue/Engine/Binaries/Linux
+          tar -czf "$GITHUB_WORKSPACE/TraceDigest-${{ env.VERSION_TAG }}-ue${{ inputs.ue_branch }}-linux-x64.tar.gz" \
+            TraceDigest TraceDigest.modules TraceDigest.target libTraceDigest-*.so
+          ls -la "$GITHUB_WORKSPACE"/TraceDigest-*.tar.gz
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $bin = "ue\Engine\Binaries\Win64"
+          $items = @(
+            "$bin\TraceDigest.exe",
+            "$bin\TraceDigest.modules",
+            "$bin\TraceDigest.target"
+          ) + (Get-ChildItem -Path "$bin\TraceDigest-*.dll").FullName
+          $out = "TraceDigest-${{ env.VERSION_TAG }}-ue${{ inputs.ue_branch }}-windows-x64.zip"
+          Compress-Archive -Path $items -DestinationPath $out -Force
+          Get-Item $out
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracedigest-${{ matrix.label }}
+          path: TraceDigest-*.${{ runner.os == 'Linux' && 'tar.gz' || 'zip' }}
+          if-no-files-found: error
+          retention-days: 7

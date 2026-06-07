@@ -1,0 +1,152 @@
+name: release
+
+# Triggered by pushing a semver tag like `v0.3.1`. Three phases run in sequence:
+#   1. validate         — refuse if package.json version doesn't match the tag
+#   2. build            — call build.yml to produce Linux + Windows binaries
+#   3. publish-and-release — npm publish the mcp-server, then create the GH
+#                            release with all binaries attached
+#
+# Required secrets:
+#   * UE_TOKEN — EpicGames-org PAT (see build.yml). Without it the build
+#                phase fails before publishing/releasing.
+#
+# No NPM token is needed. The `publish` step uses npm's OIDC-based Trusted
+# Publishing: GitHub mints a short-lived ID token (id-token: write permission
+# below), npm verifies it against the trusted publisher config attached to
+# the `ue-trace-mcp` package on npmjs.com. Setup steps for the maintainer:
+#   1. Publish v0.3.0 once manually from your laptop so the package name is
+#      claimed. Then on npmjs.com → package → "Trusted Publishers", add this
+#      repo (mtuska/ue-trace-mcp) and workflow filename (release.yml).
+#   2. After that, every tag-driven release publishes with provenance and
+#      no long-lived token.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # to create the GitHub release
+  id-token: write   # to allow npm provenance if/when we enable it
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Refuse to release if mcp-server/package.json version drifts from the tag.
+  # Stops "I tagged v0.3.1 but forgot to bump the package" mistakes that would
+  # otherwise publish stale content to npm.
+  validate:
+    name: validate tag matches package.json
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.derive.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Derive expected version
+        id: derive
+        run: |
+          tag="${GITHUB_REF#refs/tags/v}"
+          pkg=$(node -p "require('./mcp-server/package.json').version")
+          echo "tag=$tag pkg=$pkg"
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::tag v$tag does not match mcp-server/package.json version $pkg"
+            exit 1
+          fi
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+
+  # Build binaries via the reusable workflow. Inherits UE_TOKEN.
+  build:
+    needs: validate
+    uses: ./.github/workflows/build.yml
+    with:
+      ue_branch: '5.7'
+      version_tag: v${{ needs.validate.outputs.version }}
+    secrets:
+      UE_TOKEN: ${{ secrets.UE_TOKEN }}
+
+  # Publish the TypeScript package to npm and create the GitHub release with
+  # all binary tarballs/zips attached. Both run from the same job so a npm
+  # publish failure stops us before creating a half-published release.
+  publish-and-release:
+    name: publish to npm + create GitHub release
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+          cache-dependency-path: mcp-server/package-lock.json
+
+      - name: Install deps
+        working-directory: mcp-server
+        run: npm ci
+
+      # The canonical LICENSE lives at the repo root. Copy it into the npm
+      # package so registry tooling and users see the license without having
+      # to navigate to GitHub.
+      - name: Stage LICENSE into npm package
+        run: cp LICENSE mcp-server/LICENSE
+
+      # Trusted Publishing needs a fairly recent npm — the ID-token exchange
+      # only landed in npm 11.x. The shipped npm on ubuntu-latest is usually
+      # fine, but pin to latest to be safe and to keep `--provenance` cheap.
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      # prepublishOnly in package.json runs lint+test+build, so we don't have
+      # to re-run them explicitly. `--access public` is required for unscoped
+      # public packages on npm (defaults to private otherwise for new ones).
+      # `--provenance` attaches a signed build attestation that the package
+      # came from this workflow on this commit — Trusted Publishing makes
+      # this attestation free; the user can verify with `npm audit signatures`.
+      - name: Publish to npm (Trusted Publishing via OIDC)
+        working-directory: mcp-server
+        run: npm publish --access public --provenance
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          # Flatten: all of tracedigest-linux/*.tar.gz, tracedigest-windows/*.zip
+          # end up under artifacts/<name>/<file>.
+          merge-multiple: false
+
+      - name: Inspect artifacts
+        run: find artifacts -type f -printf '%p (%s bytes)\n'
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="v${{ needs.validate.outputs.version }}"
+          notes_file=$(mktemp)
+          cat >"$notes_file" <<EOF
+          # ue-trace-mcp $version
+
+          ## Install
+
+          MCP server (TypeScript):
+
+              npx @mtuska/ue-trace-mcp@${{ needs.validate.outputs.version }}
+
+          TraceDigest binary (UE Program): download the matching tarball/zip
+          below and unpack to a directory of your choice. Point the MCP server
+          at it via \`TRACE_DIGEST_BIN=/path/to/TraceDigest\`.
+
+          Binaries are built against **UE 5.7**. They may not load against
+          older or newer engine versions — engine binary compatibility is
+          not guaranteed across minor releases.
+
+          See the [README](https://github.com/mtuska/ue-trace-mcp#readme) for
+          the full setup.
+          EOF
+          gh release create "$version" \
+            --title "$version" \
+            --notes-file "$notes_file" \
+            artifacts/*/*.tar.gz \
+            artifacts/*/*.zip

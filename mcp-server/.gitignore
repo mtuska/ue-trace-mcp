@@ -3,3 +3,8 @@ dist/
 coverage/
 *.log
 .DS_Store
+
+# LICENSE is canonical at the repo root. The release workflow copies it
+# in for the npm package; if you copy it locally for a manual publish,
+# we don't want a duplicate landing in git.
+LICENSE

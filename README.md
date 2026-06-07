@@ -132,6 +132,25 @@ Pass `-nocache` to disable the cache lookup entirely.
 
 The real fix for "the LLM keeps re-parsing the same trace" is **daemon mode** — keep a parsed `IAnalysisSession` resident across calls. That's the default behavior.
 
+## Releases
+
+Cutting a release:
+
+```bash
+# 1. Bump the version in mcp-server/package.json (e.g. 0.3.1)
+# 2. Commit, then tag the same version with a `v` prefix:
+git tag v0.3.1
+git push origin v0.3.1
+```
+
+The `release` workflow takes over: it validates the tag matches `package.json`, builds the `TraceDigest` binary on Linux + Windows runners against UE 5.7, publishes the `@mtuska/ue-trace-mcp` npm package, and creates a GitHub release with both binaries attached as `TraceDigest-v0.3.1-ue5.7-{linux-x64,windows-x64}.{tar.gz,zip}`.
+
+To dry-run the binary build without publishing, run the `build-program` workflow manually from the Actions tab (it accepts a `ue_branch` input — default `5.7`).
+
+Required repo secret (Settings → Secrets and variables → Actions):
+
+- **`UE_TOKEN`** — a GitHub Personal Access Token for an account that has accepted Epic's EULA on epicgames.com and joined the [EpicGames GitHub organisation](https://www.unrealengine.com/en-US/ue-on-github). Scope: `repo` (read). Without this the workflow can't clone `EpicGames/UnrealEngine`.
+
 ## Status
 
 v0.3 scope:
