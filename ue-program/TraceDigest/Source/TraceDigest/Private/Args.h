@@ -18,6 +18,7 @@ enum class EMode : uint8
 	Callers,   // butterfly: who called this event
 	Callees,   // butterfly: what this event called
 	Threads,   // per-thread CPU breakdown
+	Channels,  // enumerate trace channels present in the capture
 };
 
 struct FArgs

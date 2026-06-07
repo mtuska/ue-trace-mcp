@@ -3,18 +3,20 @@ import { TraceCache, variantHash } from "./cache.js";
 import type {
   CallersArgsT,
   CalleesArgsT,
+  ChannelsArgsT,
   CompareArgsT,
+  CpuThreadsArgsT,
   DigestArgsT,
   FrameArgsT,
   FramesArgsT,
   OverviewArgsT,
   StatusArgsT,
-  ThreadsArgsT,
   TimelineArgsT,
   UnloadArgsT,
 } from "./schemas.js";
 import type {
   ButterflyOutput,
+  ChannelsOutput,
   CompareOutput,
   DigestOutput,
   FrameOutput,
@@ -179,7 +181,24 @@ export async function doCallees(args: CalleesArgsT, ctx: ToolContext): Promise<B
   return out;
 }
 
-export async function doThreads(args: ThreadsArgsT, ctx: ToolContext): Promise<ThreadsOutput> {
+// --- v0.4 channel-aware tools ---
+
+export async function doChannels(args: ChannelsArgsT, ctx: ToolContext): Promise<ChannelsOutput> {
+  const variant = variantHash("channels", {});
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as ChannelsOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "channels", file: args.file },
+    ctx.runOptions,
+  )) as ChannelsOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+// Was `doThreads` in v0.3 — renamed to match the new `trace_cpu_threads`
+// tool name and to leave room for `trace_gpu_queues` etc. without ambiguity.
+export async function doCpuThreads(args: CpuThreadsArgsT, ctx: ToolContext): Promise<ThreadsOutput> {
   const variant = variantHash("threads", { limit: args.limit });
   const cached = await ctx.cache.get(args.file, variant);
   if (cached) return cached.value as ThreadsOutput;

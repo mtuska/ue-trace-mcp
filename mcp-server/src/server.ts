@@ -10,13 +10,14 @@ import { TraceCache } from "./cache.js";
 import {
   doCallees,
   doCallers,
+  doChannels,
   doCompare,
+  doCpuThreads,
   doDigest,
   doFrame,
   doFrames,
   doOverview,
   doStatus,
-  doThreads,
   doTimeline,
   doUnload,
   type ToolContext,
@@ -24,13 +25,14 @@ import {
 import {
   CallersArgs,
   CalleesArgs,
+  ChannelsArgs,
   CompareArgs,
+  CpuThreadsArgs,
   DigestArgs,
   FrameArgs,
   FramesArgs,
   OverviewArgs,
   StatusArgs,
-  ThreadsArgs,
   TimelineArgs,
   UnloadArgs,
 } from "./schemas.js";
@@ -149,12 +151,12 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
       handler: (a, c) => doCallees(a, c),
     },
     {
-      name: "trace_threads",
+      name: "trace_cpu_threads",
       description:
         "Per-thread CPU breakdown: event_count, total_depth0_ms (rough 'thread busy' proxy), and " +
         "top-10 timers per thread. Use to locate which thread is doing the work or to spot parallelism gaps.",
-      schema: ThreadsArgs,
-      handler: (a, c) => doThreads(a, c),
+      schema: CpuThreadsArgs,
+      handler: (a, c) => doCpuThreads(a, c),
     },
     {
       name: "trace_compare",
@@ -181,12 +183,22 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
       schema: StatusArgs,
       handler: (a, c) => doStatus(a, c),
     },
+    {
+      name: "trace_channels",
+      description:
+        "Enumerate the trace channels present in the .utrace capture (cpu, gpu, memory, memalloc, " +
+        "counter, log, bookmark, region, …). Use to find out which other tools will return data — " +
+        "e.g. don't bother calling trace_memalloc_* against a capture whose memalloc channel was " +
+        "never recorded.",
+      schema: ChannelsArgs,
+      handler: (a, c) => doChannels(a, c),
+    },
   ];
 
   const byName = new Map(tools.map((t) => [t.name, t] as const));
 
   const server = new Server(
-    { name: "ue-trace-mcp", version: "0.3.0" },
+    { name: "ue-trace-mcp", version: "0.4.0-dev" },
     { capabilities: { tools: {} } },
   );
 

@@ -159,6 +159,22 @@ export interface ThreadsOutput {
   events: ThreadEvent[];
 }
 
+// --- v0.4 channel-aware tools ---
+
+export interface ChannelEntry {
+  id: number;
+  name: string;
+  enabled: boolean;
+  read_only: boolean;
+}
+
+export interface ChannelsOutput {
+  file: string;
+  mode: "channels";
+  duration_ms: number;
+  channels: ChannelEntry[];
+}
+
 // --- Daemon control responses ---
 
 export interface UnloadOutput {
@@ -190,4 +206,5 @@ export type AnyDigestOutput =
   | OverviewOutput
   | FrameOutput
   | ButterflyOutput
-  | ThreadsOutput;
+  | ThreadsOutput
+  | ChannelsOutput;

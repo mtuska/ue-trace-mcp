@@ -57,6 +57,7 @@ static int32 RunWithArgs(const TraceDigest::FArgs& Args)
 		case EMode::Callers:  Modes::RunCallers (*TraceA.GetSession(), Args, Json); break;
 		case EMode::Callees:  Modes::RunCallees (*TraceA.GetSession(), Args, Json); break;
 		case EMode::Threads:  Modes::RunThreads (*TraceA.GetSession(), Args, Json); break;
+		case EMode::Channels: Modes::RunChannels(*TraceA.GetSession(), Args, Json); break;
 
 		case EMode::Compare:
 		{

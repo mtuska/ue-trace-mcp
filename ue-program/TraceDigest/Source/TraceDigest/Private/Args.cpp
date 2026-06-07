@@ -21,6 +21,7 @@ const TCHAR* FArgs::ModeName(EMode M)
 		case EMode::Callers:  return TEXT("callers");
 		case EMode::Callees:  return TEXT("callees");
 		case EMode::Threads:  return TEXT("threads");
+		case EMode::Channels: return TEXT("channels");
 	}
 	return TEXT("digest");
 }
@@ -39,6 +40,7 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 		else if (ModeStr.Equals(TEXT("callers"),  ESearchCase::IgnoreCase)) { Mode = EMode::Callers;  }
 		else if (ModeStr.Equals(TEXT("callees"),  ESearchCase::IgnoreCase)) { Mode = EMode::Callees;  }
 		else if (ModeStr.Equals(TEXT("threads"),  ESearchCase::IgnoreCase)) { Mode = EMode::Threads;  }
+		else if (ModeStr.Equals(TEXT("channels"), ESearchCase::IgnoreCase)) { Mode = EMode::Channels; }
 		else
 		{
 			OutError = FString::Printf(TEXT("unknown -mode='%s'"), *ModeStr);

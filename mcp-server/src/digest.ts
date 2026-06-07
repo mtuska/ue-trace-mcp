@@ -38,7 +38,8 @@ export interface DigestArgsRaw {
     | "frame"
     | "callers"
     | "callees"
-    | "threads";
+    | "threads"
+    | "channels";
   prefix?: string;
   event?: string;
   limit?: number;

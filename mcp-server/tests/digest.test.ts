@@ -4,7 +4,18 @@ import { fileURLToPath } from "node:url";
 import { chmod } from "node:fs/promises";
 
 import { runTraceDigest, extractTrailingJson, TraceDigestError } from "../src/digest.js";
-import { doDigest, doTimeline, doFrames, doCompare, doOverview, doFrame, doCallers, doCallees, doThreads } from "../src/tools.js";
+import {
+  doCallees,
+  doCallers,
+  doChannels,
+  doCompare,
+  doCpuThreads,
+  doDigest,
+  doFrame,
+  doFrames,
+  doOverview,
+  doTimeline,
+} from "../src/tools.js";
 import { TraceCache } from "../src/cache.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -231,12 +242,27 @@ describe("v0.2 tools", () => {
     expect(callees.events.length).toBeGreaterThan(0);
   });
 
-  it("doThreads: returns per-thread breakdowns with top_timers", async () => {
+  it("doCpuThreads: returns per-thread breakdowns with top_timers", async () => {
     const cache = new TraceCache(3);
-    const r = await doThreads({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    const r = await doCpuThreads({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
     expect(r.mode).toBe("threads");
     expect(r.events.length).toBeGreaterThan(0);
     expect(r.events[0]!.thread_name).toBeTypeOf("string");
     expect(r.events[0]!.top_timers.length).toBeGreaterThan(0);
+  });
+
+  it("doChannels: lists trace channels with enabled/read_only flags", async () => {
+    const cache = new TraceCache(3);
+    const r = await doChannels(
+      { file: FIXTURE_TRACE },
+      { cache, runOptions: { binary: MOCK_BIN } },
+    );
+    expect(r.mode).toBe("channels");
+    expect(r.channels.length).toBeGreaterThan(0);
+    const cpu = r.channels.find((c) => c.name === "cpu");
+    expect(cpu?.enabled).toBe(true);
+    // disabled channels still show up so the LLM knows they exist but had no data.
+    const memalloc = r.channels.find((c) => c.name === "memalloc");
+    expect(memalloc?.enabled).toBe(false);
   });
 });

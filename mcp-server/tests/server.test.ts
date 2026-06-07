@@ -34,13 +34,14 @@ describe("MCP server wiring", () => {
     expect(res.tools.map((t) => t.name).sort()).toEqual([
       "trace_callees",
       "trace_callers",
+      "trace_channels",
       "trace_compare",
+      "trace_cpu_threads",
       "trace_digest",
       "trace_frame",
       "trace_frames",
       "trace_overview",
       "trace_status",
-      "trace_threads",
       "trace_timeline",
       "trace_unload",
     ]);

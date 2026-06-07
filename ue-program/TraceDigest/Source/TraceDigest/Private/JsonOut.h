@@ -26,9 +26,10 @@ public:
 	void Bool(bool V);
 	void Null();
 
-	void KeyStr(const TCHAR* K, const FString& V);
-	void KeyNum(const TCHAR* K, double V);
-	void KeyInt(const TCHAR* K, int64 V);
+	void KeyStr (const TCHAR* K, const FString& V);
+	void KeyNum (const TCHAR* K, double V);
+	void KeyInt (const TCHAR* K, int64 V);
+	void KeyBool(const TCHAR* K, bool V);
 
 	// Returns the assembled JSON. May be called multiple times if you want to
 	// stream chunks; in that case call Reset() between flushes.

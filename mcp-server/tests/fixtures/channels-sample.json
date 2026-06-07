@@ -1,0 +1,16 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "channels",
+  "duration_ms": 16800.5,
+  "channels": [
+    { "id": 1, "name": "cpu",       "enabled": true,  "read_only": false },
+    { "id": 2, "name": "gpu",       "enabled": true,  "read_only": false },
+    { "id": 3, "name": "frame",     "enabled": true,  "read_only": true  },
+    { "id": 4, "name": "counter",   "enabled": true,  "read_only": false },
+    { "id": 5, "name": "bookmark",  "enabled": true,  "read_only": false },
+    { "id": 6, "name": "region",    "enabled": true,  "read_only": false },
+    { "id": 7, "name": "log",       "enabled": true,  "read_only": false },
+    { "id": 8, "name": "memory",    "enabled": false, "read_only": false },
+    { "id": 9, "name": "memalloc",  "enabled": false, "read_only": false }
+  ]
+}

@@ -88,9 +88,10 @@ void FJsonOut::Int(int64 V)
 void FJsonOut::Bool(bool V) { Sep(); Buffer += V ? TEXT("true") : TEXT("false"); }
 void FJsonOut::Null()       { Sep(); Buffer += TEXT("null"); }
 
-void FJsonOut::KeyStr(const TCHAR* K, const FString& V) { Key(K); Str(V); }
-void FJsonOut::KeyNum(const TCHAR* K, double V)         { Key(K); Num(V); }
-void FJsonOut::KeyInt(const TCHAR* K, int64 V)          { Key(K); Int(V); }
+void FJsonOut::KeyStr (const TCHAR* K, const FString& V) { Key(K); Str(V);  }
+void FJsonOut::KeyNum (const TCHAR* K, double V)         { Key(K); Num(V);  }
+void FJsonOut::KeyInt (const TCHAR* K, int64 V)          { Key(K); Int(V);  }
+void FJsonOut::KeyBool(const TCHAR* K, bool V)           { Key(K); Bool(V); }
 
 FString FJsonOut::ToString() const { return Buffer; }
 
