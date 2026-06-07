@@ -1,0 +1,15 @@
+{
+  "file": "/fake/multiplayer.utrace",
+  "mode": "net",
+  "view": "objects",
+  "has_net_data": true,
+  "net_trace_version": 4,
+  "game_instance_filter": -1,
+  "events": [
+    { "game_instance_index": 0, "object_index":   1, "net_object_id":  1001, "type_id": 42, "name_index":  5, "life_begin_ms":  200.0, "life_end_ms": -1.0 },
+    { "game_instance_index": 0, "object_index":   2, "net_object_id":  1002, "type_id": 43, "name_index":  6, "life_begin_ms":  201.0, "life_end_ms":  9500.0 },
+    { "game_instance_index": 0, "object_index":   3, "net_object_id":  1003, "type_id": 44, "name_index":  7, "life_begin_ms":  205.0, "life_end_ms": -1.0 }
+  ],
+  "total_in_window": 3,
+  "truncated": false
+}

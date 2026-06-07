@@ -52,7 +52,8 @@ export interface DigestArgsRaw {
     | "modules"
     | "task_list"
     | "task_drill"
-    | "asset";
+    | "asset"
+    | "net";
   prefix?: string;
   event?: string;
   limit?: number;
@@ -80,6 +81,11 @@ export interface DigestArgsRaw {
   callstackId?: number;
   taskId?: number;
   state?: string;
+  gameInstanceId?: number;
+  connectionId?: number;
+  direction?: string;
+  packetStart?: number;
+  packetEnd?: number;
 }
 
 export class TraceDigestError extends Error {
@@ -145,6 +151,11 @@ function buildBinaryArgv(args: DigestArgsRaw, outPath?: string): string[] {
   if (args.callstackId !== undefined) argv.push(`-callstack-id=${args.callstackId}`);
   if (args.taskId !== undefined) argv.push(`-task-id=${args.taskId}`);
   if (args.state) argv.push(`-state=${args.state}`);
+  if (args.gameInstanceId !== undefined) argv.push(`-game-instance-id=${args.gameInstanceId}`);
+  if (args.connectionId !== undefined) argv.push(`-connection-id=${args.connectionId}`);
+  if (args.direction) argv.push(`-direction=${args.direction}`);
+  if (args.packetStart !== undefined) argv.push(`-packet-start=${args.packetStart}`);
+  if (args.packetEnd !== undefined) argv.push(`-packet-end=${args.packetEnd}`);
 
   if (outPath) argv.push(`-out=${outPath}`);
   return argv;
@@ -202,6 +213,11 @@ async function runViaDaemon(
   if (args.callstackId !== undefined) parts.push(`-callstack-id=${args.callstackId}`);
   if (args.taskId !== undefined) parts.push(`-task-id=${args.taskId}`);
   if (args.state) parts.push(`-state=${args.state}`);
+  if (args.gameInstanceId !== undefined) parts.push(`-game-instance-id=${args.gameInstanceId}`);
+  if (args.connectionId !== undefined) parts.push(`-connection-id=${args.connectionId}`);
+  if (args.direction) parts.push(`-direction=${args.direction}`);
+  if (args.packetStart !== undefined) parts.push(`-packet-start=${args.packetStart}`);
+  if (args.packetEnd !== undefined) parts.push(`-packet-end=${args.packetEnd}`);
 
   const data = await registry.query(args.file, parts.join(" "));
   return data as AnyDigestOutput;

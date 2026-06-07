@@ -1,0 +1,13 @@
+{
+  "file": "/fake/multiplayer.utrace",
+  "mode": "net",
+  "view": "connections",
+  "has_net_data": true,
+  "net_trace_version": 4,
+  "game_instance_filter": 0,
+  "connection_count": 2,
+  "events": [
+    { "game_instance_index": 0, "connection_index": 10, "connection_id":  5, "name": "Player1", "address": "192.168.1.10:54321", "has_incoming": true, "has_outgoing": true,  "life_begin_ms":  150.0, "life_end_ms": -1.0 },
+    { "game_instance_index": 0, "connection_index": 11, "connection_id":  6, "name": "Player2", "address": "192.168.1.11:54322", "has_incoming": true, "has_outgoing": true,  "life_begin_ms":  220.5, "life_end_ms": -1.0 }
+  ]
+}

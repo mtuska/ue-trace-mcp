@@ -704,6 +704,91 @@ export type AssetPackagesOutput = AssetOutputBase<"packages", AssetPackageRow>;
 export type AssetRequestsOutput = AssetOutputBase<"requests", AssetRequestRow>;
 export type AssetExportsOutput  = AssetOutputBase<"exports",  AssetExportRow>;
 
+// trace_net_* family — four views over INetProfilerProvider.
+
+interface NetEnvelope<View extends string> {
+  file: string;
+  mode: "net";
+  view: View;
+  has_net_data: boolean;
+  net_trace_version: number;
+}
+
+export interface NetInstanceRow {
+  game_instance_index: number;
+  game_instance_id: number;
+  name: string;
+  is_server: boolean;
+  is_iris: boolean;
+  life_begin_ms: number;
+  /** -1 when the lifetime never ended (still open at capture end). */
+  life_end_ms: number;
+}
+
+export interface NetInstancesOutput extends NetEnvelope<"instances"> {
+  instance_count?: number;
+  events: NetInstanceRow[];
+}
+
+export interface NetConnectionRow {
+  game_instance_index: number;
+  connection_index: number;
+  connection_id: number;
+  name: string;
+  address: string;
+  has_incoming: boolean;
+  has_outgoing: boolean;
+  life_begin_ms: number;
+  life_end_ms: number;
+}
+
+export interface NetConnectionsOutput extends NetEnvelope<"connections"> {
+  game_instance_filter: number;
+  connection_count?: number;
+  events: NetConnectionRow[];
+}
+
+export interface NetPacketRow {
+  time_ms: number;
+  sequence_number: number;
+  content_size_bits: number;
+  total_packet_size_bytes: number;
+  event_count: number;
+  frame_index: number;
+  /** "unknown" | "delivered" | "dropped" | "invalid" */
+  delivery: string;
+  /** "invalid" | "closed" | "pending" | "open" | "unknown" */
+  connection_state: string;
+}
+
+export interface NetPacketsOutput extends NetEnvelope<"packets"> {
+  connection_index: number;
+  direction: "outgoing" | "incoming";
+  total_packets: number;
+  window_start: number;
+  window_end: number;
+  emitted: number;
+  truncated: boolean;
+  events: NetPacketRow[];
+}
+
+export interface NetObjectRow {
+  game_instance_index: number;
+  object_index: number;
+  net_object_id: number;
+  type_id: number;
+  name_index: number;
+  life_begin_ms: number;
+  life_end_ms: number;
+}
+
+export interface NetObjectsOutput extends NetEnvelope<"objects"> {
+  game_instance_filter: number;
+  total_in_window: number;
+  truncated: boolean;
+  events: NetObjectRow[];
+}
+
 // trace_query — open-ended envelope. The `events` array shape varies per
 // intent; intent-specific top-level fields land alongside it. We type the
 // rows as `Record<string, unknown>` because of that variability.
@@ -793,4 +878,8 @@ export type AnyDigestOutput =
   | TaskDrillOutput
   | AssetPackagesOutput
   | AssetRequestsOutput
-  | AssetExportsOutput;
+  | AssetExportsOutput
+  | NetInstancesOutput
+  | NetConnectionsOutput
+  | NetPacketsOutput
+  | NetObjectsOutput;

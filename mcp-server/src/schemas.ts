@@ -439,6 +439,62 @@ export const AssetExportsArgs = z.object({
 });
 export type AssetExportsArgsT = z.infer<typeof AssetExportsArgs>;
 
+// trace_net_* family — four tools over INetProfilerProvider. Hierarchical:
+// instances → connections → packets (× objects per instance). The TS
+// surface is split into per-purpose schemas; the binary uses one
+// -mode=net -view=<…> umbrella.
+
+export const NetInstancesArgs = z.object({
+  file,
+});
+export type NetInstancesArgsT = z.infer<typeof NetInstancesArgs>;
+
+export const NetConnectionsArgs = z.object({
+  file,
+  game_instance_id: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe("Restrict to one game instance. Default: every instance."),
+});
+export type NetConnectionsArgsT = z.infer<typeof NetConnectionsArgs>;
+
+export const NetPacketsArgs = z.object({
+  file,
+  connection_id: z.number().int().nonnegative().describe("Connection index from trace_net_connections."),
+  direction: z
+    .enum(["outgoing", "incoming"])
+    .optional()
+    .describe("Default 'outgoing'."),
+  packet_start: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe("Inclusive start packet index. Default: last `limit` packets."),
+  packet_end: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe("Inclusive end packet index. Default: most recent."),
+  limit: z.number().int().positive().optional().describe("Cap returned packets. Default 500."),
+});
+export type NetPacketsArgsT = z.infer<typeof NetPacketsArgs>;
+
+export const NetObjectsArgs = z.object({
+  file,
+  game_instance_id: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe("Restrict to one game instance. Default: every instance."),
+  limit: z.number().int().positive().optional().describe("Cap returned object instances. Default 500."),
+});
+export type NetObjectsArgsT = z.infer<typeof NetObjectsArgs>;
+
 // trace_query — intent-dispatched escape hatch. `intent` is z.string() (not
 // an enum) so the C++ side can add new intents without forcing a schema
 // bump. Use intent="list" to discover the registry.

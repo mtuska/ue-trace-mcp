@@ -32,6 +32,7 @@ enum class EMode : uint8
 	TaskList,  // Windowed enumeration of tasks with state filter
 	TaskDrill, // Full info on one task (prerequisites/subsequents/parents/nested)
 	Asset,     // Asset/load-time tables: view-dispatched (packages|requests|exports)
+	Net,       // Net trace: view-dispatched (instances|connections|packets|objects)
 };
 
 struct FArgs
@@ -74,6 +75,13 @@ struct FArgs
 	// v0.5: tasks
 	uint64 TaskId = ~uint64(0);  // -task-id=<uint64> for trace_task_drill (TaskTrace::InvalidId default)
 	FString State;               // -state=<Alive|Launched|Active|WaitingForPrerequisites|Queued|Executing|WaitingForNested|Completed>
+
+	// v0.5: net
+	int32 GameInstanceId = -1;   // -game-instance-id=<idx> for net per-instance views
+	int32 ConnectionId   = -1;   // -connection-id=<idx> for net_packets
+	FString Direction;           // -direction=outgoing|incoming for net_packets
+	int32 PacketStart    = -1;   // -packet-start=<idx>
+	int32 PacketEnd      = -1;   // -packet-end=<idx>
 
 	// Daemon mode (Program target only). The Program loads the trace once and
 	// services repeated queries over a Unix socket until idle timeout or

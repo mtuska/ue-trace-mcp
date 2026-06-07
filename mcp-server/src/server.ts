@@ -7,6 +7,10 @@ import {
   doAssetExports,
   doAssetPackages,
   doAssetRequests,
+  doNetConnections,
+  doNetInstances,
+  doNetObjects,
+  doNetPackets,
   doBookmarkList,
   doCallees,
   doCallers,
@@ -43,6 +47,10 @@ import {
   AssetExportsArgs,
   AssetPackagesArgs,
   AssetRequestsArgs,
+  NetConnectionsArgs,
+  NetInstancesArgs,
+  NetObjectsArgs,
+  NetPacketsArgs,
   BookmarkListArgs,
   CallersArgs,
   CalleesArgs,
@@ -475,6 +483,43 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
         "(create/serialize/postload). Lets you find which UObject classes dominate load time.",
       schema: AssetExportsArgs,
       handler: (a, c) => doAssetExports(a, c),
+    },
+    {
+      name: "trace_net_instances",
+      description:
+        "List game instances (server/client, replication backend (iris-vs-legacy), lifetime). " +
+        "Call first to discover game_instance_index values for the other trace_net_* tools. " +
+        "instance_count:0 means the net channel wasn't captured.",
+      schema: NetInstancesArgs,
+      handler: (a, c) => doNetInstances(a, c),
+    },
+    {
+      name: "trace_net_connections",
+      description:
+        "Per-game-instance connections (peer address, lifetime, in/out data flags). Default: list " +
+        "across every instance. Pass game_instance_id to scope. Use the resulting connection_index " +
+        "values with trace_net_packets.",
+      schema: NetConnectionsArgs,
+      handler: (a, c) => doNetConnections(a, c),
+    },
+    {
+      name: "trace_net_packets",
+      description:
+        "Windowed packet enumeration for one connection in one direction (outgoing/incoming). " +
+        "Each row: sequence_number, content_size_bits, total_packet_size_bytes, event_count, " +
+        "delivery (delivered/dropped/unknown), connection_state. Default window: last 500 packets. " +
+        "Production traces can have 10⁶+ packets — supply packet_start/packet_end to scope.",
+      schema: NetPacketsArgs,
+      handler: (a, c) => doNetPackets(a, c),
+    },
+    {
+      name: "trace_net_objects",
+      description:
+        "Replicated object instances (NetObject id, type id, lifetime). Default: every instance. " +
+        "Pass game_instance_id to scope. Useful for finding which actors took the most network " +
+        "traffic over the capture.",
+      schema: NetObjectsArgs,
+      handler: (a, c) => doNetObjects(a, c),
     },
   ];
 

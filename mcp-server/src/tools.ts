@@ -4,6 +4,10 @@ import type {
   AssetExportsArgsT,
   AssetPackagesArgsT,
   AssetRequestsArgsT,
+  NetConnectionsArgsT,
+  NetInstancesArgsT,
+  NetObjectsArgsT,
+  NetPacketsArgsT,
   BookmarkListArgsT,
   CallersArgsT,
   CalleesArgsT,
@@ -39,6 +43,10 @@ import type {
   AssetExportsOutput,
   AssetPackagesOutput,
   AssetRequestsOutput,
+  NetConnectionsOutput,
+  NetInstancesOutput,
+  NetObjectsOutput,
+  NetPacketsOutput,
   BookmarkListOutput,
   ButterflyOutput,
   CallstackOutput,
@@ -534,6 +542,83 @@ export async function doAssetExports(args: AssetExportsArgsT, ctx: ToolContext):
     { mode: "asset", file: args.file, view: "exports", frameRange: args.frameRange, limit: args.limit },
     ctx.runOptions,
   )) as AssetExportsOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+// v0.5 — net trace. Four tools sharing the `-mode=net -view=<…>` umbrella
+// on the binary side. Instances/connections/objects cache by variant;
+// packets bypass cache because the LLM typically iterates the window.
+export async function doNetInstances(
+  args: NetInstancesArgsT, ctx: ToolContext,
+): Promise<NetInstancesOutput> {
+  const variant = variantHash("net_instances", {});
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as NetInstancesOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "net", file: args.file, view: "instances" },
+    ctx.runOptions,
+  )) as NetInstancesOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doNetConnections(
+  args: NetConnectionsArgsT, ctx: ToolContext,
+): Promise<NetConnectionsOutput> {
+  const variant = variantHash("net_connections", { game_instance_id: args.game_instance_id });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as NetConnectionsOutput;
+
+  const out = (await runTraceDigest(
+    {
+      mode: "net",
+      file: args.file,
+      view: "connections",
+      gameInstanceId: args.game_instance_id,
+    },
+    ctx.runOptions,
+  )) as NetConnectionsOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doNetPackets(
+  args: NetPacketsArgsT, ctx: ToolContext,
+): Promise<NetPacketsOutput> {
+  return (await runTraceDigest(
+    {
+      mode: "net",
+      file: args.file,
+      view: "packets",
+      connectionId: args.connection_id,
+      direction: args.direction,
+      packetStart: args.packet_start,
+      packetEnd: args.packet_end,
+      limit: args.limit,
+    },
+    ctx.runOptions,
+  )) as NetPacketsOutput;
+}
+
+export async function doNetObjects(
+  args: NetObjectsArgsT, ctx: ToolContext,
+): Promise<NetObjectsOutput> {
+  const variant = variantHash("net_objects", { game_instance_id: args.game_instance_id, limit: args.limit });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as NetObjectsOutput;
+
+  const out = (await runTraceDigest(
+    {
+      mode: "net",
+      file: args.file,
+      view: "objects",
+      gameInstanceId: args.game_instance_id,
+      limit: args.limit,
+    },
+    ctx.runOptions,
+  )) as NetObjectsOutput;
   await ctx.cache.put(args.file, variant, out);
   return out;
 }

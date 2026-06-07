@@ -1,0 +1,12 @@
+{
+  "file": "/fake/multiplayer.utrace",
+  "mode": "net",
+  "view": "instances",
+  "has_net_data": true,
+  "net_trace_version": 4,
+  "instance_count": 2,
+  "events": [
+    { "game_instance_index": 0, "game_instance_id": 1, "name": "DedicatedServer",      "is_server": true,  "is_iris": false, "life_begin_ms":    0.0, "life_end_ms": -1.0 },
+    { "game_instance_index": 1, "game_instance_id": 2, "name": "Client.localhost:7777","is_server": false, "is_iris": false, "life_begin_ms":  120.5, "life_end_ms": -1.0 }
+  ]
+}

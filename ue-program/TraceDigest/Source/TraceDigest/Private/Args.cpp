@@ -36,6 +36,7 @@ const TCHAR* FArgs::ModeName(EMode M)
 		case EMode::TaskList:  return TEXT("task_list");
 		case EMode::TaskDrill: return TEXT("task_drill");
 		case EMode::Asset:     return TEXT("asset");
+		case EMode::Net:       return TEXT("net");
 	}
 	return TEXT("digest");
 }
@@ -68,6 +69,7 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 		else if (ModeStr.Equals(TEXT("task_list"), ESearchCase::IgnoreCase)) { Mode = EMode::TaskList;  }
 		else if (ModeStr.Equals(TEXT("task_drill"),ESearchCase::IgnoreCase)) { Mode = EMode::TaskDrill; }
 		else if (ModeStr.Equals(TEXT("asset"),     ESearchCase::IgnoreCase)) { Mode = EMode::Asset;     }
+		else if (ModeStr.Equals(TEXT("net"),       ESearchCase::IgnoreCase)) { Mode = EMode::Net;       }
 		else
 		{
 			OutError = FString::Printf(TEXT("unknown -mode='%s'"), *ModeStr);
@@ -123,6 +125,11 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 	FParse::Value(CmdLine, TEXT("-callstack-id="), CallstackId);
 	FParse::Value(CmdLine, TEXT("-task-id="),      TaskId);
 	FParse::Value(CmdLine, TEXT("-state="),        State);
+	FParse::Value(CmdLine, TEXT("-game-instance-id="), GameInstanceId);
+	FParse::Value(CmdLine, TEXT("-connection-id="),    ConnectionId);
+	FParse::Value(CmdLine, TEXT("-direction="),        Direction);
+	FParse::Value(CmdLine, TEXT("-packet-start="),     PacketStart);
+	FParse::Value(CmdLine, TEXT("-packet-end="),       PacketEnd);
 	if (Buckets <= 0) Buckets = 256;
 	if (Channel.IsEmpty()) Channel = TEXT("cpu");
 
@@ -250,6 +257,23 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 			&& !View.Equals(TEXT("exports"), ESearchCase::IgnoreCase))
 		{
 			OutError = FString::Printf(TEXT("-mode=asset unknown -view='%s' (expected packages|requests|exports)"), *View);
+			return false;
+		}
+	}
+	if (Mode == EMode::Net)
+	{
+		if (View.IsEmpty()) View = TEXT("instances");
+		if (!View.Equals(TEXT("instances"),   ESearchCase::IgnoreCase)
+			&& !View.Equals(TEXT("connections"), ESearchCase::IgnoreCase)
+			&& !View.Equals(TEXT("packets"),     ESearchCase::IgnoreCase)
+			&& !View.Equals(TEXT("objects"),     ESearchCase::IgnoreCase))
+		{
+			OutError = FString::Printf(TEXT("-mode=net unknown -view='%s' (expected instances|connections|packets|objects)"), *View);
+			return false;
+		}
+		if (View.Equals(TEXT("packets"), ESearchCase::IgnoreCase) && ConnectionId < 0)
+		{
+			OutError = TEXT("-mode=net -view=packets requires -connection-id=<idx>");
 			return false;
 		}
 	}

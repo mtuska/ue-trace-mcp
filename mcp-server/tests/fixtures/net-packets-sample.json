@@ -1,0 +1,19 @@
+{
+  "file": "/fake/multiplayer.utrace",
+  "mode": "net",
+  "view": "packets",
+  "has_net_data": true,
+  "net_trace_version": 4,
+  "connection_index": 10,
+  "direction": "outgoing",
+  "total_packets": 12450,
+  "window_start": 11950,
+  "window_end":   12449,
+  "events": [
+    { "time_ms": 16720.0, "sequence_number": 9871, "content_size_bits": 4096,  "total_packet_size_bytes":  512, "event_count": 14, "frame_index": 1042, "delivery": "delivered", "connection_state": "open" },
+    { "time_ms": 16728.5, "sequence_number": 9872, "content_size_bits": 8192,  "total_packet_size_bytes": 1024, "event_count": 22, "frame_index": 1042, "delivery": "delivered", "connection_state": "open" },
+    { "time_ms": 16742.0, "sequence_number": 9873, "content_size_bits": 1536,  "total_packet_size_bytes":  192, "event_count":  4, "frame_index": 1043, "delivery": "dropped",   "connection_state": "open" }
+  ],
+  "emitted": 3,
+  "truncated": true
+}

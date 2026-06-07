@@ -8,6 +8,10 @@ import {
   doAssetExports,
   doAssetPackages,
   doAssetRequests,
+  doNetConnections,
+  doNetInstances,
+  doNetObjects,
+  doNetPackets,
   doBookmarkList,
   doCallees,
   doCallers,
@@ -518,5 +522,43 @@ describe("v0.2 tools", () => {
     expect(r.events.length).toBeGreaterThan(0);
     expect(["create", "serialize", "postload", "none"]).toContain(r.events[0]!.event_type);
     expect(r.events[0]!.serialized_size).toBeGreaterThan(0);
+  });
+
+  it("doNetInstances: lists game instances with server/client flag", async () => {
+    const cache = new TraceCache(3);
+    const r = await doNetInstances({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.view).toBe("instances");
+    expect(r.has_net_data).toBe(true);
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(r.events.some((e) => e.is_server)).toBe(true);
+  });
+
+  it("doNetConnections: per-instance connections with addresses", async () => {
+    const cache = new TraceCache(3);
+    const r = await doNetConnections(
+      { file: FIXTURE_TRACE, game_instance_id: 0 },
+      { cache, runOptions: { binary: MOCK_BIN } },
+    );
+    expect(r.view).toBe("connections");
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(r.events[0]!.address.length).toBeGreaterThan(0);
+  });
+
+  it("doNetPackets: windowed packets with delivery flag", async () => {
+    const r = await doNetPackets(
+      { file: FIXTURE_TRACE, connection_id: 10, direction: "outgoing" },
+      { cache: new TraceCache(3), runOptions: { binary: MOCK_BIN } },
+    );
+    expect(r.view).toBe("packets");
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(["delivered", "dropped", "unknown"]).toContain(r.events[0]!.delivery);
+  });
+
+  it("doNetObjects: replicated object instances with lifetime", async () => {
+    const cache = new TraceCache(3);
+    const r = await doNetObjects({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.view).toBe("objects");
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(r.events[0]!.net_object_id).toBeGreaterThan(0);
   });
 });
