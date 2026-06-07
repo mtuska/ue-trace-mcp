@@ -105,7 +105,8 @@ static void RunCpuDigest(const ITimingProfilerProvider& Timing, const FArgs& Arg
 // GPU digest: walk every GPU queue's timeline and aggregate by timer id,
 // reusing the same reservoir → percentile pipeline. GPU events live in the
 // same ITimingProfilerTimerReader as CPU but have Type=GpuScope; we filter
-// for that.
+// for that. Supports both the new FGpuQueueInfo-based API and the legacy
+// Gpu1/Gpu2 timelines (which a number of in-the-wild traces still use).
 static void RunGpuDigest(const ITimingProfilerProvider& Timing, const FArgs& Args, double EndSec, FJsonOut& Json)
 {
 	TMap<uint32, FReservoir> ReservoirByTimer;
@@ -116,6 +117,13 @@ static void RunGpuDigest(const ITimingProfilerProvider& Timing, const FArgs& Arg
 	{
 		if (Q.TimelineIndex != ~0u) QueueTimelineIdx.Add(Q.TimelineIndex);
 	});
+	// Fallback: legacy GPU timelines.
+	if (QueueTimelineIdx.Num() == 0)
+	{
+		uint32 Idx = ~0u;
+		if (Timing.GetGpuTimelineIndex(Idx))  QueueTimelineIdx.Add(Idx);
+		if (Timing.GetGpu2TimelineIndex(Idx)) QueueTimelineIdx.Add(Idx);
+	}
 
 	for (uint32 Idx : QueueTimelineIdx)
 	{
@@ -190,8 +198,14 @@ static void RunRegionDigest(const IAnalysisSession& Session, const FArgs& Args, 
 			{
 				const FString Name = (R.Timer && R.Timer->Name) ? FString(R.Timer->Name) : FString();
 				if (!Args.Prefix.IsEmpty() && !Name.StartsWith(Args.Prefix)) return true;
+				// Open regions have EndTime = +inf; clamp to the trace's end so
+				// they're treated as "ran from begin to capture end". Anything
+				// past EndSec is also clamped.
+				const double End = FMath::Min(R.EndTime, EndSec);
+				const double Begin = FMath::Max(R.BeginTime, 0.0);
+				if (!FMath::IsFinite(End) || !FMath::IsFinite(Begin) || End < Begin) return true;
 				FReservoir& Res = ReservoirByName.FindOrAdd(Name);
-				Res.Add((R.EndTime - R.BeginTime) * 1000.0);
+				Res.Add((End - Begin) * 1000.0);
 				return true;
 			});
 		});

@@ -25,8 +25,10 @@ static void RunGpuQueues(const ITimingProfilerProvider& Timing, const FArgs& Arg
 
 	Json.Key(TEXT("queues"));
 	Json.BeginArray();
+	int32 NewStyleCount = 0;
 	Timing.EnumerateGpuQueues([&](const FGpuQueueInfo& Q)
 	{
+		++NewStyleCount;
 		Json.BeginObject();
 		Json.KeyInt(TEXT("id"),                 static_cast<int64>(Q.Id));
 		Json.KeyInt(TEXT("gpu"),                static_cast<int64>(Q.GPU));
@@ -36,8 +38,47 @@ static void RunGpuQueues(const ITimingProfilerProvider& Timing, const FArgs& Arg
 		Json.KeyStr(TEXT("display_name"),       Q.GetDisplayName());
 		Json.KeyInt(TEXT("timeline_index"),     static_cast<int64>(Q.TimelineIndex));
 		Json.KeyInt(TEXT("work_timeline_index"), static_cast<int64>(Q.WorkTimelineIndex));
+		Json.KeyStr(TEXT("api"),                TEXT("queue"));  // FGpuQueueInfo
 		Json.EndObject();
 	});
+
+	// Legacy GPU-insights timelines (Gpu1/Gpu2). Older traces and a number of
+	// in-the-wild Insights captures expose GPU work this way instead of via
+	// FGpuQueueInfo. We surface them as pseudo-queues with id=0/1 so the
+	// timeline / fences views can find them.
+	if (NewStyleCount == 0)
+	{
+		uint32 Idx = ~0u;
+		if (Timing.GetGpuTimelineIndex(Idx))
+		{
+			Json.BeginObject();
+			Json.KeyInt(TEXT("id"),                 0);
+			Json.KeyInt(TEXT("gpu"),                0);
+			Json.KeyInt(TEXT("index"),              0);
+			Json.KeyInt(TEXT("type"),               0);
+			Json.KeyStr(TEXT("name"),               TEXT("Gpu1"));
+			Json.KeyStr(TEXT("display_name"),       TEXT("Gpu1 (legacy)"));
+			Json.KeyInt(TEXT("timeline_index"),     static_cast<int64>(Idx));
+			Json.KeyInt(TEXT("work_timeline_index"), static_cast<int64>(Idx));
+			Json.KeyStr(TEXT("api"),                TEXT("legacy"));
+			Json.EndObject();
+		}
+		Idx = ~0u;
+		if (Timing.GetGpu2TimelineIndex(Idx))
+		{
+			Json.BeginObject();
+			Json.KeyInt(TEXT("id"),                 1);
+			Json.KeyInt(TEXT("gpu"),                0);
+			Json.KeyInt(TEXT("index"),              1);
+			Json.KeyInt(TEXT("type"),               0);
+			Json.KeyStr(TEXT("name"),               TEXT("Gpu2"));
+			Json.KeyStr(TEXT("display_name"),       TEXT("Gpu2 (legacy)"));
+			Json.KeyInt(TEXT("timeline_index"),     static_cast<int64>(Idx));
+			Json.KeyInt(TEXT("work_timeline_index"), static_cast<int64>(Idx));
+			Json.KeyStr(TEXT("api"),                TEXT("legacy"));
+			Json.EndObject();
+		}
+	}
 	Json.EndArray();
 }
 

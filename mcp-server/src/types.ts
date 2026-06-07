@@ -296,6 +296,8 @@ export interface RegionEvent {
   duration_ms: number;
   depth: number;
   id: number;
+  /** True when the region never received a TRACE_END_REGION; `end_ms` is clamped to the trace end. */
+  open: boolean;
 }
 
 export interface RegionListOutput {

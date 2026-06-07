@@ -68,15 +68,20 @@ void Modes::RunRegions(const IAnalysisSession& Session, const FArgs& Args, FJson
 				const FString TimerName = (R.Timer && R.Timer->Name) ? FString(R.Timer->Name) : FString();
 				const FString Cat       = (R.Timer && R.Timer->Category && R.Timer->Category->Name)
 					                      ? FString(R.Timer->Category->Name) : FString();
+				// Open regions default to EndTime=+inf. Clamp to trace end so
+				// the JSON stays valid; mark the row so callers can tell.
+				const bool   bOpen = !FMath::IsFinite(R.EndTime);
+				const double End   = bOpen ? EndSec : R.EndTime;
 
 				Json.BeginObject();
-				Json.KeyStr(TEXT("name"),        TimerName);
-				Json.KeyStr(TEXT("category"),    Cat);
-				Json.KeyNum(TEXT("begin_ms"),    R.BeginTime * 1000.0);
-				Json.KeyNum(TEXT("end_ms"),      R.EndTime * 1000.0);
-				Json.KeyNum(TEXT("duration_ms"), (R.EndTime - R.BeginTime) * 1000.0);
-				Json.KeyInt(TEXT("depth"),       static_cast<int64>(R.Depth));
-				Json.KeyInt(TEXT("id"),          static_cast<int64>(R.Id));
+				Json.KeyStr (TEXT("name"),        TimerName);
+				Json.KeyStr (TEXT("category"),    Cat);
+				Json.KeyNum (TEXT("begin_ms"),    R.BeginTime * 1000.0);
+				Json.KeyNum (TEXT("end_ms"),      End * 1000.0);
+				Json.KeyNum (TEXT("duration_ms"), (End - R.BeginTime) * 1000.0);
+				Json.KeyInt (TEXT("depth"),       static_cast<int64>(R.Depth));
+				Json.KeyInt (TEXT("id"),          static_cast<int64>(R.Id));
+				Json.KeyBool(TEXT("open"),        bOpen);
 				Json.EndObject();
 				++Emitted;
 				return true;

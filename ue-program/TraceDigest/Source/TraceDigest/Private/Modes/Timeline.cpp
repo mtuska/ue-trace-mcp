@@ -55,6 +55,14 @@ static void EmitTimingInstances(const ITimingProfilerProvider& Timing,
 		{
 			if (Q.TimelineIndex != ~0u) Idxs.Add(Q.TimelineIndex);
 		});
+		// Fallback: legacy Gpu1/Gpu2 timelines for traces that predate the
+		// FGpuQueueInfo API.
+		if (Idxs.Num() == 0)
+		{
+			uint32 Idx = ~0u;
+			if (Timing.GetGpuTimelineIndex(Idx))  Idxs.Add(Idx);
+			if (Timing.GetGpu2TimelineIndex(Idx)) Idxs.Add(Idx);
+		}
 		for (uint32 Idx : Idxs)
 		{
 			Timing.ReadTimeline(Idx, Walk);
@@ -81,11 +89,16 @@ static void EmitRegionInstances(const IAnalysisSession& Session,
 			{
 				const FString Name = (R.Timer && R.Timer->Name) ? FString(R.Timer->Name) : FString();
 				if (!Name.Equals(EventName, ESearchCase::IgnoreCase)) return true;
-				const uint32 FrameIdx = Frames.GetFrameNumberForTimestamp(TraceFrameType_Game, R.BeginTime);
+				// Clamp open-ended regions to the trace window so JSON numbers
+				// stay finite (open regions default to EndTime=+inf).
+				const double Begin = FMath::Max(R.BeginTime, WindowStart);
+				const double End   = FMath::Min(R.EndTime,   WindowEnd);
+				if (!FMath::IsFinite(End) || !FMath::IsFinite(Begin) || End < Begin) return true;
+				const uint32 FrameIdx = Frames.GetFrameNumberForTimestamp(TraceFrameType_Game, Begin);
 				Json.BeginObject();
 				Json.KeyInt(TEXT("frame_idx"),    static_cast<int64>(FrameIdx));
-				Json.KeyNum(TEXT("start_ms"),     R.BeginTime * 1000.0);
-				Json.KeyNum(TEXT("duration_ms"), (R.EndTime - R.BeginTime) * 1000.0);
+				Json.KeyNum(TEXT("start_ms"),     Begin * 1000.0);
+				Json.KeyNum(TEXT("duration_ms"), (End - Begin) * 1000.0);
 				Json.EndObject();
 				return true;
 			});
