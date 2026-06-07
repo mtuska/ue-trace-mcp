@@ -490,6 +490,64 @@ export interface MemallocQueryOutput {
   error?: string;
 }
 
+// trace_callstack — symbolicated frames for one CallstackId.
+export interface CallstackFrame {
+  depth: number;
+  addr: number;
+  /** "pending" | "ok" | "not_loaded" | "version_mismatch" | "not_found" | "no_symbol" | "unknown". */
+  status: string;
+  symbol: string;
+  module: string;
+  file: string;
+  line: number;
+}
+
+export interface CallstackOutput {
+  file: string;
+  mode: "callstack";
+  callstack_id: number;
+  found: boolean;
+  frame_count: number;
+  frames: CallstackFrame[];
+}
+
+// trace_modules — discovered modules + per-module symbol stats.
+export interface ModuleSymbolStats {
+  discovered: number;
+  cached: number;
+  resolved: number;
+  failed: number;
+  available: number;
+}
+
+export interface ModuleRow {
+  name: string;
+  full_name: string;
+  base: number;
+  size: number;
+  unloaded: boolean;
+  status: string;
+  status_message: string;
+  symbol_stats: ModuleSymbolStats;
+}
+
+export interface ModulesOutput {
+  file: string;
+  mode: "modules";
+  module_count: number;
+  finished_resolving?: boolean;
+  totals?: {
+    modules_discovered: number;
+    modules_loaded: number;
+    modules_failed: number;
+    symbols_discovered: number;
+    symbols_cached: number;
+    symbols_resolved: number;
+    symbols_failed: number;
+  };
+  modules: ModuleRow[];
+}
+
 // trace_query — open-ended envelope. The `events` array shape varies per
 // intent; intent-specific top-level fields land alongside it. We type the
 // rows as `Record<string, unknown>` because of that variability.
@@ -572,4 +630,6 @@ export type AnyDigestOutput =
   | MemallocTimelineOutput
   | MemallocHeapsOutput
   | MemallocQueryOutput
-  | QueryOutput;
+  | QueryOutput
+  | CallstackOutput
+  | ModulesOutput;

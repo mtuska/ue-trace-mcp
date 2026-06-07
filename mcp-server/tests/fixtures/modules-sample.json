@@ -1,0 +1,37 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "modules",
+  "module_count": 2,
+  "finished_resolving": false,
+  "totals": {
+    "modules_discovered": 2,
+    "modules_loaded":     1,
+    "modules_failed":     0,
+    "symbols_discovered": 1500,
+    "symbols_cached":      800,
+    "symbols_resolved":    700,
+    "symbols_failed":       50
+  },
+  "modules": [
+    {
+      "name":          "ZombieProto-Linux",
+      "full_name":     "/abs/path/ZombieProto-Linux.so",
+      "base":          140000000000,
+      "size":          16777216,
+      "unloaded":      false,
+      "status":        "loaded",
+      "status_message":"/abs/path/ZombieProto-Linux.so.debug",
+      "symbol_stats":  { "discovered": 1500, "cached": 800, "resolved": 700, "failed": 50, "available": 9876 }
+    },
+    {
+      "name":          "UnrealEditor-Engine",
+      "full_name":     "/abs/path/UnrealEditor-Engine.so",
+      "base":          140000016777216,
+      "size":          67108864,
+      "unloaded":      false,
+      "status":        "pending",
+      "status_message":"",
+      "symbol_stats":  { "discovered": 0, "cached": 0, "resolved": 0, "failed": 0, "available": 0 }
+    }
+  ]
+}

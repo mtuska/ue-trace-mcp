@@ -47,7 +47,9 @@ export interface DigestArgsRaw {
     | "logs"
     | "memory"
     | "allocations"
-    | "query";
+    | "query"
+    | "callstack"
+    | "modules";
   prefix?: string;
   event?: string;
   limit?: number;
@@ -72,6 +74,7 @@ export interface DigestArgsRaw {
   queryTimeoutMs?: number;
   intent?: string;
   params?: string;  // JSON string forwarded to C++ for parse
+  callstackId?: number;
 }
 
 export class TraceDigestError extends Error {
@@ -134,6 +137,7 @@ function buildBinaryArgv(args: DigestArgsRaw, outPath?: string): string[] {
     // of that for one extra char-class on each side.
     argv.push(`-params-b64=${Buffer.from(args.params, "utf8").toString("base64")}`);
   }
+  if (args.callstackId !== undefined) argv.push(`-callstack-id=${args.callstackId}`);
 
   if (outPath) argv.push(`-out=${outPath}`);
   return argv;
@@ -188,6 +192,7 @@ async function runViaDaemon(
   if (args.params) {
     parts.push(`-params-b64=${Buffer.from(args.params, "utf8").toString("base64")}`);
   }
+  if (args.callstackId !== undefined) parts.push(`-callstack-id=${args.callstackId}`);
 
   const data = await registry.query(args.file, parts.join(" "));
   return data as AnyDigestOutput;

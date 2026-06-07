@@ -1,0 +1,13 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "callstack",
+  "callstack_id": 12345,
+  "found": true,
+  "frame_count": 4,
+  "frames": [
+    { "depth": 0, "addr": 140000000000, "status": "ok",         "symbol": "FZombie::Tick",                 "module": "ZombieProto-Linux", "file": "ZombieProto/Zombie.cpp", "line": 217 },
+    { "depth": 1, "addr": 140000004096, "status": "ok",         "symbol": "FZombieWorld::TickAll",         "module": "ZombieProto-Linux", "file": "ZombieProto/World.cpp",  "line":  88 },
+    { "depth": 2, "addr": 140000008192, "status": "ok",         "symbol": "UWorld::Tick",                  "module": "UnrealEditor-Engine","file": "Engine/World.cpp",       "line": 1452 },
+    { "depth": 3, "addr": 140000012288, "status": "pending",   "symbol": "",                              "module": "",                  "file": "",                       "line": 0 }
+  ]
+}

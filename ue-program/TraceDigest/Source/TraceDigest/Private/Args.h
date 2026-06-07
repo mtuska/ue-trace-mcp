@@ -27,6 +27,8 @@ enum class EMode : uint8
 	Memory,    // LLM tag tree + per-tag time-bucketed samples (view-dispatched)
 	Allocations, // Per-allocation tracking (timeline/heaps/query view-dispatched)
 	Query,     // Intent-dispatched cross-cutting queries (trace_query)
+	Callstack, // Resolve one CallstackId to symbolicated frames
+	Modules,   // List discovered modules + symbol-resolution stats
 };
 
 struct FArgs
@@ -62,6 +64,9 @@ struct FArgs
 	double TimeA = -1.0;   // -timeA=<sec> query rule time anchor
 	double TimeB = -1.0;   // -timeB=<sec> query rule time anchor
 	int32 QueryTimeoutMs = 60000;  // -query-timeout-ms=<N> for sync-wrapped allocations queries
+
+	// v0.5: callstack/symbolication
+	uint32 CallstackId = 0;  // -callstack-id=<uint32> for trace_callstack lookup
 
 	// Daemon mode (Program target only). The Program loads the trace once and
 	// services repeated queries over a Unix socket until idle timeout or

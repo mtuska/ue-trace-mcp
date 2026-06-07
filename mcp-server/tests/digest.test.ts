@@ -8,6 +8,7 @@ import {
   doBookmarkList,
   doCallees,
   doCallers,
+  doCallstack,
   doChannels,
   doCompare,
   doCounterCatalogue,
@@ -25,6 +26,7 @@ import {
   doMemorySamples,
   doMemoryTags,
   doMemoryTrackers,
+  doModules,
   doQuery,
   doStatus,
   doOverview,
@@ -435,5 +437,27 @@ describe("v0.2 tools", () => {
     const r = await doStatus({}, { cache: new TraceCache(3), runOptions: { binary: MOCK_BIN } });
     expect(Array.isArray(r.loading)).toBe(true);
     expect(r.loading.length).toBe(0);
+  });
+
+  it("doCallstack: returns symbolicated frames for one callstack id", async () => {
+    const r = await doCallstack(
+      { file: FIXTURE_TRACE, id: 12345 },
+      { cache: new TraceCache(3), runOptions: { binary: MOCK_BIN } },
+    );
+    expect(r.mode).toBe("callstack");
+    expect(r.found).toBe(true);
+    expect(r.frame_count).toBeGreaterThan(0);
+    expect(r.frames[0]!.symbol.length).toBeGreaterThan(0);
+    expect(["ok", "pending", "not_loaded", "version_mismatch", "not_found", "no_symbol"]).toContain(r.frames[0]!.status);
+  });
+
+  it("doModules: enumerates modules with per-module symbol stats", async () => {
+    const cache = new TraceCache(3);
+    const r = await doModules({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.mode).toBe("modules");
+    expect(r.module_count).toBeGreaterThan(0);
+    expect(r.modules.length).toBeGreaterThan(0);
+    expect(r.modules[0]!.symbol_stats.discovered).toBeGreaterThanOrEqual(0);
+    expect(r.totals?.modules_discovered).toBeGreaterThan(0);
   });
 });

@@ -350,6 +350,28 @@ export const MemallocQueryArgs = z.object({
 });
 export type MemallocQueryArgsT = z.infer<typeof MemallocQueryArgs>;
 
+// trace_callstack — resolve one CallstackId to symbolicated frames. Every
+// event-emitting tool's row carries a callstack_id; pass it here to see
+// function/module/file/line.
+export const CallstackArgs = z.object({
+  file,
+  id: z
+    .number()
+    .int()
+    .positive()
+    .describe("Callstack id from any v0.4 event row. Id 0 is reserved for the empty callstack."),
+});
+export type CallstackArgsT = z.infer<typeof CallstackArgs>;
+
+// trace_modules — list discovered modules with load status + symbol stats.
+// Pair with trace_callstack when a frame returns status:"not_loaded" or
+// "version_mismatch" — checking modules tells you whether the parent
+// module was loaded at all.
+export const ModulesArgs = z.object({
+  file,
+});
+export type ModulesArgsT = z.infer<typeof ModulesArgs>;
+
 // trace_query — intent-dispatched escape hatch. `intent` is z.string() (not
 // an enum) so the C++ side can add new intents without forcing a schema
 // bump. Use intent="list" to discover the registry.

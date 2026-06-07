@@ -7,6 +7,7 @@ import {
   doBookmarkList,
   doCallees,
   doCallers,
+  doCallstack,
   doChannels,
   doCompare,
   doCounterCatalogue,
@@ -25,6 +26,7 @@ import {
   doMemorySamples,
   doMemoryTags,
   doMemoryTrackers,
+  doModules,
   doOverview,
   doRegionList,
   doStatus,
@@ -36,6 +38,7 @@ import {
   BookmarkListArgs,
   CallersArgs,
   CalleesArgs,
+  CallstackArgs,
   ChannelsArgs,
   CompareArgs,
   CounterCatalogueArgs,
@@ -50,6 +53,7 @@ import {
   MemallocHeapsArgs,
   MemallocQueryArgs,
   MemallocTimelineArgs,
+  ModulesArgs,
   QueryArgs,
   MemorySamplesArgs,
   MemoryTagsArgs,
@@ -394,6 +398,25 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
         "logs_around_slow_frames (logs in a window around each frame past a pX threshold).",
       schema: QueryArgs,
       handler: (a, c) => doQuery(a, c),
+    },
+    {
+      name: "trace_callstack",
+      description:
+        "Resolve one callstack_id (carried by every CPU/GPU/allocation/bookmark event row) to its " +
+        "symbolicated frames. Each frame returns {depth, addr, status, symbol, module, file, line}. " +
+        "status is 'ok' / 'pending' / 'not_loaded' / 'version_mismatch' / 'not_found' / 'no_symbol' — " +
+        "non-ok statuses usually mean the parent module wasn't loaded; check trace_modules.",
+      schema: CallstackArgs,
+      handler: (a, c) => doCallstack(a, c),
+    },
+    {
+      name: "trace_modules",
+      description:
+        "List every discovered module with load status (loaded/pending/not_found/version_mismatch/…) " +
+        "plus per-module symbol-resolution stats (discovered/cached/resolved/failed/available). " +
+        "Pair with trace_callstack to diagnose why a frame's symbol came back unresolved.",
+      schema: ModulesArgs,
+      handler: (a, c) => doModules(a, c),
     },
   ];
 

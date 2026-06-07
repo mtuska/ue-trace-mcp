@@ -41,6 +41,10 @@ namespace Modes
 	void RunMemory     (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
 	void RunAllocations(const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
 	void RunQuery      (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
+
+	// v0.5
+	void RunCallstack  (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
+	void RunModules    (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
 }
 
 } // namespace TraceDigest

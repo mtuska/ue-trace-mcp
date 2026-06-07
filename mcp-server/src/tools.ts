@@ -4,6 +4,7 @@ import type {
   BookmarkListArgsT,
   CallersArgsT,
   CalleesArgsT,
+  CallstackArgsT,
   ChannelsArgsT,
   CompareArgsT,
   CounterCatalogueArgsT,
@@ -18,6 +19,7 @@ import type {
   MemallocHeapsArgsT,
   MemallocQueryArgsT,
   MemallocTimelineArgsT,
+  ModulesArgsT,
   QueryArgsT,
   MemorySamplesArgsT,
   MemoryTagsArgsT,
@@ -31,6 +33,7 @@ import type {
 import type {
   BookmarkListOutput,
   ButterflyOutput,
+  CallstackOutput,
   ChannelsOutput,
   CompareOutput,
   CounterCatalogueOutput,
@@ -45,6 +48,7 @@ import type {
   MemallocHeapsOutput,
   MemallocQueryOutput,
   MemallocTimelineOutput,
+  ModulesOutput,
   QueryOutput,
   MemorySamplesOutput,
   MemoryTagsOutput,
@@ -428,6 +432,28 @@ export async function doMemallocHeaps(
     { mode: "allocations", file: args.file, view: "heaps" },
     ctx.runOptions,
   )) as MemallocHeapsOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+// v0.5 — callstack symbolication. Not cached: lookups are per-id; cache
+// provides no value over the daemon's in-memory provider lookup.
+export async function doCallstack(args: CallstackArgsT, ctx: ToolContext): Promise<CallstackOutput> {
+  return (await runTraceDigest(
+    { mode: "callstack", file: args.file, callstackId: args.id },
+    ctx.runOptions,
+  )) as CallstackOutput;
+}
+
+export async function doModules(args: ModulesArgsT, ctx: ToolContext): Promise<ModulesOutput> {
+  const variant = variantHash("modules", {});
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as ModulesOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "modules", file: args.file },
+    ctx.runOptions,
+  )) as ModulesOutput;
   await ctx.cache.put(args.file, variant, out);
   return out;
 }
