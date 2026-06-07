@@ -3,6 +3,7 @@
 #include "Modes.h"
 #include "Args.h"
 #include "JsonOut.h"
+#include "ProviderReadScope.h"
 
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Regions.h"
@@ -21,6 +22,7 @@ void Modes::RunRegions(const IAnalysisSession& Session, const FArgs& Args, FJson
 {
 	FAnalysisSessionReadScope Lock(Session);
 	const IRegionProvider& Provider = ReadRegionProvider(Session);
+	FProviderReadScope ProviderLock(Provider);
 
 	const double EndSec = Session.GetDurationSeconds();
 	const int32 Limit = Args.Limit > 0 ? Args.Limit : 500;

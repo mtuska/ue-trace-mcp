@@ -53,6 +53,7 @@ export interface DigestArgsRaw {
   frame?: number;
 
   // v0.4 channel-aware flags.
+  channel?: string;
   view?: string;
   counter?: string;
   category?: string;
@@ -100,6 +101,7 @@ function buildBinaryArgv(args: DigestArgsRaw, outPath?: string): string[] {
   if (args.frame !== undefined) argv.push(`-frame=${args.frame}`);
 
   // v0.4 channel-aware flags.
+  if (args.channel) argv.push(`-channel=${args.channel}`);
   if (args.view) argv.push(`-view=${args.view}`);
   if (args.counter) argv.push(`-counter=${args.counter}`);
   if (args.category) argv.push(`-category=${args.category}`);
@@ -143,6 +145,7 @@ async function runViaDaemon(
   if (args.threshold !== undefined) parts.push(`-threshold=${args.threshold}`);
   if (args.frame !== undefined) parts.push(`-frame=${args.frame}`);
   if (args.frameRange) parts.push(`-framerange=${args.frameRange[0]}:${args.frameRange[1]}`);
+  if (args.channel) parts.push(`-channel=${args.channel}`);
   if (args.view) parts.push(`-view=${args.view}`);
   if (args.counter) parts.push(`-counter=${args.counter}`);
   if (args.category) parts.push(`-category=${args.category}`);

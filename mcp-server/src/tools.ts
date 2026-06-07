@@ -55,14 +55,14 @@ export interface ToolContext {
 // repeated identical calls skip the editor entirely.
 
 export async function doDigest(args: DigestArgsT, ctx: ToolContext): Promise<DigestOutput> {
-  const variant = variantHash("digest", { prefix: args.prefix, limit: args.limit });
+  const variant = variantHash("digest", { channel: args.channel, prefix: args.prefix, limit: args.limit });
 
   const cached = await ctx.cache.get(args.file, variant);
   const raw =
     (cached?.value as DigestOutput | undefined) ??
     (await (async () => {
       const out = (await runTraceDigest(
-        { mode: "digest", file: args.file, prefix: args.prefix, limit: args.limit },
+        { mode: "digest", file: args.file, channel: args.channel, prefix: args.prefix, limit: args.limit },
         ctx.runOptions,
       )) as DigestOutput;
       await ctx.cache.put(args.file, variant, out);
@@ -77,12 +77,12 @@ export async function doDigest(args: DigestArgsT, ctx: ToolContext): Promise<Dig
 }
 
 export async function doTimeline(args: TimelineArgsT, ctx: ToolContext): Promise<TimelineOutput> {
-  const variant = variantHash("timeline", { event: args.event, frameRange: args.frameRange });
+  const variant = variantHash("timeline", { channel: args.channel, event: args.event, frameRange: args.frameRange });
   const cached = await ctx.cache.get(args.file, variant);
   if (cached) return cached.value as TimelineOutput;
 
   const out = (await runTraceDigest(
-    { mode: "timeline", file: args.file, event: args.event, frameRange: args.frameRange },
+    { mode: "timeline", file: args.file, channel: args.channel, event: args.event, frameRange: args.frameRange },
     ctx.runOptions,
   )) as TimelineOutput;
   await ctx.cache.put(args.file, variant, out);
@@ -117,6 +117,7 @@ export async function doFrames(args: FramesArgsT, ctx: ToolContext): Promise<Fra
 
 export async function doCompare(args: CompareArgsT, ctx: ToolContext): Promise<CompareOutput> {
   const variant = variantHash("compare", {
+    channel: args.channel,
     fileB: args.fileB,
     prefix: args.prefix,
     threshold: args.threshold,
@@ -131,6 +132,7 @@ export async function doCompare(args: CompareArgsT, ctx: ToolContext): Promise<C
       mode: "compare",
       file: args.fileA,
       file2: args.fileB,
+      channel: args.channel,
       prefix: args.prefix,
       threshold: args.threshold,
       limit: args.limit,
@@ -170,12 +172,12 @@ export async function doFrame(args: FrameArgsT, ctx: ToolContext): Promise<Frame
 }
 
 export async function doCallers(args: CallersArgsT, ctx: ToolContext): Promise<ButterflyOutput> {
-  const variant = variantHash("callers", { event: args.event, limit: args.limit });
+  const variant = variantHash("callers", { channel: args.channel, event: args.event, limit: args.limit });
   const cached = await ctx.cache.get(args.file, variant);
   if (cached) return cached.value as ButterflyOutput;
 
   const out = (await runTraceDigest(
-    { mode: "callers", file: args.file, event: args.event, limit: args.limit },
+    { mode: "callers", file: args.file, channel: args.channel, event: args.event, limit: args.limit },
     ctx.runOptions,
   )) as ButterflyOutput;
   await ctx.cache.put(args.file, variant, out);
@@ -183,12 +185,12 @@ export async function doCallers(args: CallersArgsT, ctx: ToolContext): Promise<B
 }
 
 export async function doCallees(args: CalleesArgsT, ctx: ToolContext): Promise<ButterflyOutput> {
-  const variant = variantHash("callees", { event: args.event, limit: args.limit });
+  const variant = variantHash("callees", { channel: args.channel, event: args.event, limit: args.limit });
   const cached = await ctx.cache.get(args.file, variant);
   if (cached) return cached.value as ButterflyOutput;
 
   const out = (await runTraceDigest(
-    { mode: "callees", file: args.file, event: args.event, limit: args.limit },
+    { mode: "callees", file: args.file, channel: args.channel, event: args.event, limit: args.limit },
     ctx.runOptions,
   )) as ButterflyOutput;
   await ctx.cache.put(args.file, variant, out);

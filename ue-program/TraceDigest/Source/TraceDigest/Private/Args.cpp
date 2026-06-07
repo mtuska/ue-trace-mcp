@@ -69,6 +69,7 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 
 	// v0.4 channel-aware flags. All optional; modes that need them validate
 	// post-parse below.
+	FParse::Value(CmdLine, TEXT("-channel="),    Channel);
 	FParse::Value(CmdLine, TEXT("-view="),       View);
 	FParse::Value(CmdLine, TEXT("-counter="),    Counter);
 	FParse::Value(CmdLine, TEXT("-category="),   Category);
@@ -77,6 +78,7 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 	FParse::Value(CmdLine, TEXT("-buckets="),    Buckets);
 	FParse::Value(CmdLine, TEXT("-queue="),      Queue);
 	if (Buckets <= 0) Buckets = 256;
+	if (Channel.IsEmpty()) Channel = TEXT("cpu");
 
 	if (FParse::Param(CmdLine, TEXT("nocache")))
 	{
@@ -143,6 +145,46 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 		// Series mode — counter name supplied implies the series view; no
 		// extra validation here. Catalogue mode (no -counter=) has no
 		// required args.
+	}
+
+	// v0.4 channel validation for agnostic verbs. Compare ships cpu-only in
+	// v0.4.0; widening for gpu/memory/etc. lands in a later phase. Digest,
+	// Timeline, Callers, Callees accept cpu+gpu+region (butterfly skips
+	// region — there's no meaningful caller/callee relationship for
+	// TRACE_BEGIN_REGION points).
+	auto ValidateChannel = [&](TArray<const TCHAR*> Allowed) -> bool
+	{
+		for (const TCHAR* A : Allowed)
+		{
+			if (Channel.Equals(A, ESearchCase::IgnoreCase)) return true;
+		}
+		FString List;
+		for (int32 i = 0; i < Allowed.Num(); ++i)
+		{
+			if (i > 0) List += TEXT(", ");
+			List += Allowed[i];
+		}
+		OutError = FString::Printf(
+			TEXT("-mode=%s does not support -channel='%s' in v0.4.0 (accepts: %s)"),
+			ModeName(Mode), *Channel, *List);
+		return false;
+	};
+	switch (Mode)
+	{
+		case EMode::Digest:
+		case EMode::Timeline:
+			if (!ValidateChannel({ TEXT("cpu"), TEXT("gpu"), TEXT("region") })) return false;
+			break;
+		case EMode::Callers:
+		case EMode::Callees:
+			if (!ValidateChannel({ TEXT("cpu"), TEXT("gpu") })) return false;
+			break;
+		case EMode::Compare:
+			if (!ValidateChannel({ TEXT("cpu") })) return false;
+			break;
+		default:
+			// Other modes ignore -channel= entirely.
+			break;
 	}
 	if (Limit <= 0)
 	{

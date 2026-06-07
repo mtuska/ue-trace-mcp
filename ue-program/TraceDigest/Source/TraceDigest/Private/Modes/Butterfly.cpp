@@ -23,9 +23,10 @@ static void RunButterfly(const IAnalysisSession& Session, const FArgs& Args, FJs
 	const ITimingProfilerProvider* TimingProvider = ReadTimingProfilerProvider(Session);
 
 	Json.BeginObject();
-	Json.KeyStr(TEXT("file"), Args.File);
-	Json.KeyStr(TEXT("mode"), FArgs::ModeName(Args.Mode));
-	Json.KeyStr(TEXT("event"), Args.Event);
+	Json.KeyStr(TEXT("file"),    Args.File);
+	Json.KeyStr(TEXT("mode"),    FArgs::ModeName(Args.Mode));
+	Json.KeyStr(TEXT("channel"), Args.Channel);
+	Json.KeyStr(TEXT("event"),   Args.Event);
 
 	if (!TimingProvider)
 	{
@@ -50,10 +51,18 @@ static void RunButterfly(const IAnalysisSession& Session, const FArgs& Args, FJs
 	FCreateButterflyParams Params;
 	Params.IntervalStart = 0.0;
 	Params.IntervalEnd = Session.GetDurationSeconds();
-	// Default-constructed TFunction is empty; the butterfly implementation
-	// reads this as "include zero threads" and returns an empty tree.
-	// Accept-all keeps every CPU thread in scope.
-	Params.CpuThreadFilter = [](uint32) { return true; };
+	// Channel-aware filter: gpu selects every GPU queue and leaves the CPU
+	// filter empty (default-constructed TFunction is treated as "no threads
+	// included"); cpu selects every CPU thread and leaves the GPU filter
+	// empty. v0.4.0 doesn't mix — caller picks one channel via -channel=.
+	if (Args.Channel.Equals(TEXT("gpu"), ESearchCase::IgnoreCase))
+	{
+		Params.GpuQueueFilter = [](uint32) { return true; };
+	}
+	else
+	{
+		Params.CpuThreadFilter = [](uint32) { return true; };
+	}
 
 	ITimingProfilerButterfly* Butterfly = TimingProvider->CreateButterfly(Params);
 	if (!Butterfly)

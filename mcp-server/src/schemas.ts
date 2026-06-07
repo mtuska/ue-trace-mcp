@@ -6,27 +6,35 @@ import { z } from "zod";
 
 const file = z.string().describe("Absolute path to the .utrace file.");
 
-// Channel param for tools whose verb is genuinely channel-agnostic
-// (`trace_digest`, `trace_timeline`, `trace_callers`, `trace_callees`).
-// v0.4.0 ships cpu-only; the enum widens in later passes to add gpu and
-// region without breaking the public schema.
+// Channel param for tools whose verb is genuinely channel-agnostic.
+// `trace_digest` and `trace_timeline` accept cpu+gpu+region;
+// `trace_callers` and `trace_callees` accept cpu+gpu only (butterflies on
+// regions have no meaningful semantics).
 const channel = z
-  .enum(["cpu"])
+  .enum(["cpu", "gpu", "region"])
   .optional()
   .default("cpu")
   .describe(
-    "Trace channel to operate on. v0.4.0 ships cpu-only; gpu/region land in later passes.",
+    "Trace channel to operate on. cpu (default), gpu (queue timelines), or region (TRACE_BEGIN/END_REGION spans).",
   );
 
-// trace_compare is also agnostic in spirit but ships cpu-only and will stay
-// that way longer than the read-only verbs. Same shape; separate name so
-// the future widening can diverge.
+const butterflyChannel = z
+  .enum(["cpu", "gpu"])
+  .optional()
+  .default("cpu")
+  .describe(
+    "Trace channel to butterfly into. cpu (default) or gpu. Regions have no caller/callee relationships.",
+  );
+
+// trace_compare ships cpu-only in v0.4.0; gpu/memory/etc. compares land in
+// a later phase. The field exists in the schema so future widening is
+// non-breaking; non-cpu values are rejected at parse time.
 const compareChannel = z
   .enum(["cpu"])
   .optional()
   .default("cpu")
   .describe(
-    "Trace channel to compare. Only 'cpu' is supported; non-cpu channels error out.",
+    "Trace channel to compare. Only 'cpu' is supported in v0.4.0; non-cpu channels error out.",
   );
 
 const frameType = z
@@ -133,7 +141,7 @@ export type FrameArgsT = z.infer<typeof FrameArgs>;
 
 export const CallersArgs = z.object({
   file,
-  channel,
+  channel: butterflyChannel,
   event: z.string().describe("Exact timer name to find callers for (e.g. 'Zombie_StepLocomotion')."),
   limit: z.number().int().positive().optional().describe("Top-N direct callers by inclusive time. Default 200."),
 });
@@ -141,7 +149,7 @@ export type CallersArgsT = z.infer<typeof CallersArgs>;
 
 export const CalleesArgs = z.object({
   file,
-  channel,
+  channel: butterflyChannel,
   event: z.string().describe("Exact timer name to find callees for."),
   limit: z.number().int().positive().optional().describe("Top-N direct callees by inclusive time. Default 200."),
 });

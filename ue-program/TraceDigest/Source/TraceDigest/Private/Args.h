@@ -43,6 +43,7 @@ struct FArgs
 
 	// v0.4 channel-aware additions. Empty/zero defaults mean "not supplied"
 	// — modes that need a value validate post-parse.
+	FString Channel;       // -channel=cpu|gpu|region for agnostic verbs (digest/timeline/callers/callees/compare). Default cpu.
 	FString View;          // -view=<name> for umbrella modes (gpu, counters, …)
 	FString Counter;       // -counter=<name> for counter series queries
 	FString Category;      // -category=<name> for regions/logs filtering
