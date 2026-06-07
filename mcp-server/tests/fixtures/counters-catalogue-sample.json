@@ -1,0 +1,11 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "counters",
+  "duration_ms": 16800.5,
+  "counter_count": 3,
+  "counters": [
+    { "id": 1, "name": "Zombies_Alive",        "group": "ZombieProto", "description": "live zombie count", "is_float": false, "reset_every_frame": false, "display_hint": "none" },
+    { "id": 2, "name": "Memory_PhysicalUsedMB","group": "Memory",      "description": "physical mem used", "is_float": true,  "reset_every_frame": false, "display_hint": "memory" },
+    { "id": 3, "name": "Frame_GameThreadMs",   "group": "Frames",      "description": "GT frame time",     "is_float": true,  "reset_every_frame": true,  "display_hint": "none" }
+  ]
+}

@@ -56,8 +56,13 @@ static int32 RunWithArgs(const TraceDigest::FArgs& Args)
 		case EMode::Frame:    Modes::RunFrame   (*TraceA.GetSession(), Args, Json); break;
 		case EMode::Callers:  Modes::RunCallers (*TraceA.GetSession(), Args, Json); break;
 		case EMode::Callees:  Modes::RunCallees (*TraceA.GetSession(), Args, Json); break;
-		case EMode::Threads:  Modes::RunThreads (*TraceA.GetSession(), Args, Json); break;
-		case EMode::Channels: Modes::RunChannels(*TraceA.GetSession(), Args, Json); break;
+		case EMode::Threads:   Modes::RunThreads  (*TraceA.GetSession(), Args, Json); break;
+		case EMode::Channels:  Modes::RunChannels (*TraceA.GetSession(), Args, Json); break;
+		case EMode::Gpu:       Modes::RunGpu      (*TraceA.GetSession(), Args, Json); break;
+		case EMode::Counters:  Modes::RunCounters (*TraceA.GetSession(), Args, Json); break;
+		case EMode::Bookmarks: Modes::RunBookmarks(*TraceA.GetSession(), Args, Json); break;
+		case EMode::Regions:   Modes::RunRegions  (*TraceA.GetSession(), Args, Json); break;
+		case EMode::Logs:      Modes::RunLogs     (*TraceA.GetSession(), Args, Json); break;
 
 		case EMode::Compare:
 		{

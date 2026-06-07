@@ -39,13 +39,27 @@ export interface DigestArgsRaw {
     | "callers"
     | "callees"
     | "threads"
-    | "channels";
+    | "channels"
+    | "gpu"
+    | "counters"
+    | "bookmarks"
+    | "regions"
+    | "logs";
   prefix?: string;
   event?: string;
   limit?: number;
   threshold?: number;
   frameRange?: [number, number];
   frame?: number;
+
+  // v0.4 channel-aware flags.
+  view?: string;
+  counter?: string;
+  category?: string;
+  verbosity?: string;
+  grep?: string;
+  buckets?: number;
+  queue?: number;
 }
 
 export class TraceDigestError extends Error {
@@ -84,6 +98,16 @@ function buildBinaryArgv(args: DigestArgsRaw, outPath?: string): string[] {
     argv.push(`-framerange=${a}:${b}`);
   }
   if (args.frame !== undefined) argv.push(`-frame=${args.frame}`);
+
+  // v0.4 channel-aware flags.
+  if (args.view) argv.push(`-view=${args.view}`);
+  if (args.counter) argv.push(`-counter=${args.counter}`);
+  if (args.category) argv.push(`-category=${args.category}`);
+  if (args.verbosity) argv.push(`-verbosity=${args.verbosity}`);
+  if (args.grep) argv.push(`-grep=${args.grep}`);
+  if (args.buckets !== undefined) argv.push(`-buckets=${args.buckets}`);
+  if (args.queue !== undefined) argv.push(`-queue=${args.queue}`);
+
   if (outPath) argv.push(`-out=${outPath}`);
   return argv;
 }
@@ -119,6 +143,13 @@ async function runViaDaemon(
   if (args.threshold !== undefined) parts.push(`-threshold=${args.threshold}`);
   if (args.frame !== undefined) parts.push(`-frame=${args.frame}`);
   if (args.frameRange) parts.push(`-framerange=${args.frameRange[0]}:${args.frameRange[1]}`);
+  if (args.view) parts.push(`-view=${args.view}`);
+  if (args.counter) parts.push(`-counter=${args.counter}`);
+  if (args.category) parts.push(`-category=${args.category}`);
+  if (args.verbosity) parts.push(`-verbosity=${args.verbosity}`);
+  if (args.grep) parts.push(`-grep=${args.grep}`);
+  if (args.buckets !== undefined) parts.push(`-buckets=${args.buckets}`);
+  if (args.queue !== undefined) parts.push(`-queue=${args.queue}`);
 
   const data = await registry.query(args.file, parts.join(" "));
   return data as AnyDigestOutput;

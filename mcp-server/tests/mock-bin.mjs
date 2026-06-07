@@ -38,12 +38,31 @@ async function main() {
     process.stdout.write("LogModuleManager: Loaded TraceServices\n");
   }
 
-  const fixturePath = join(fixturesDir, `${mode}-sample.json`);
+  // Resolve fixture path. For umbrella modes (gpu, counters, memory, …) we
+  // try the more-specific `${mode}-${view}-sample.json` first so each view
+  // can have its own canned output, falling back to the bare `${mode}-…`.
+  // Counters has a special case: presence of `-counter=` implies the
+  // "series" view; absence implies the "catalogue" view.
+  const view = getArg("view", argv) ?? (mode === "counters" && getArg("counter", argv) ? "series" : mode === "counters" ? "catalogue" : undefined);
+  const candidates = view
+    ? [`${mode}-${view}-sample.json`, `${mode}-sample.json`]
+    : [`${mode}-sample.json`];
+
   let payload;
-  try {
-    payload = await readFile(fixturePath, "utf8");
-  } catch (e) {
-    process.stderr.write(`mock-bin: no fixture for mode=${mode}: ${e.message}\n`);
+  let fixturePath;
+  for (const c of candidates) {
+    try {
+      fixturePath = join(fixturesDir, c);
+      payload = await readFile(fixturePath, "utf8");
+      break;
+    } catch {
+      /* try next */
+    }
+  }
+  if (payload === undefined) {
+    process.stderr.write(
+      `mock-bin: no fixture for mode=${mode}${view ? ` view=${view}` : ""}; tried [${candidates.join(", ")}]\n`,
+    );
     process.exit(2);
   }
   // Override the file field so the test can assert it tracked the argv.

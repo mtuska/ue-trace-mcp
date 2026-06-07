@@ -8,30 +8,44 @@ import type { ZodTypeAny } from "zod";
 
 import { TraceCache } from "./cache.js";
 import {
+  doBookmarkList,
   doCallees,
   doCallers,
   doChannels,
   doCompare,
+  doCounterCatalogue,
+  doCounterSeries,
   doCpuThreads,
   doDigest,
   doFrame,
   doFrames,
+  doGpuFences,
+  doGpuQueues,
+  doLogMessages,
   doOverview,
+  doRegionList,
   doStatus,
   doTimeline,
   doUnload,
   type ToolContext,
 } from "./tools.js";
 import {
+  BookmarkListArgs,
   CallersArgs,
   CalleesArgs,
   ChannelsArgs,
   CompareArgs,
+  CounterCatalogueArgs,
+  CounterSeriesArgs,
   CpuThreadsArgs,
   DigestArgs,
   FrameArgs,
   FramesArgs,
+  GpuFencesArgs,
+  GpuQueuesArgs,
+  LogMessagesArgs,
   OverviewArgs,
+  RegionListArgs,
   StatusArgs,
   TimelineArgs,
   UnloadArgs,
@@ -192,6 +206,64 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
         "never recorded.",
       schema: ChannelsArgs,
       handler: (a, c) => doChannels(a, c),
+    },
+    {
+      name: "trace_gpu_queues",
+      description:
+        "List GPU queues seen in the capture (one per GPU × queue index). Includes the timeline index " +
+        "used by trace_digest({channel:'gpu'}) and trace_timeline({channel:'gpu'}).",
+      schema: GpuQueuesArgs,
+      handler: (a, c) => doGpuQueues(a, c),
+    },
+    {
+      name: "trace_gpu_fences",
+      description:
+        "Resolved GPU cross-queue fence pairs (signal on queue A matched with wait on queue B). " +
+        "Each row carries the stall duration; ranked by file order. Use to find cross-queue stalls.",
+      schema: GpuFencesArgs,
+      handler: (a, c) => doGpuFences(a, c),
+    },
+    {
+      name: "trace_counter_catalogue",
+      description:
+        "Enumerate every TRACE_COUNTER_* known to the trace, with metadata (group, type, display hint). " +
+        "Use to discover counter names before calling trace_counter_series.",
+      schema: CounterCatalogueArgs,
+      handler: (a, c) => doCounterCatalogue(a, c),
+    },
+    {
+      name: "trace_counter_series",
+      description:
+        "Time-bucketed values for one named counter ({t_ms, min, max, avg, count} per bucket). " +
+        "Default 256 buckets evenly distributed across the trace; the response is O(buckets) " +
+        "regardless of underlying sample density.",
+      schema: CounterSeriesArgs,
+      handler: (a, c) => doCounterSeries(a, c),
+    },
+    {
+      name: "trace_bookmark_list",
+      description:
+        "Time-ordered TRACE_BOOKMARK points with optional callstack id. Use to find named " +
+        "annotations in the capture.",
+      schema: BookmarkListArgs,
+      handler: (a, c) => doBookmarkList(a, c),
+    },
+    {
+      name: "trace_region_list",
+      description:
+        "TRACE_BEGIN/END_REGION spans, optionally filtered to one category. Each row carries depth " +
+        "so consumers can reconstruct stacking. Returns a categories[] hint listing every known " +
+        "category in the trace.",
+      schema: RegionListArgs,
+      handler: (a, c) => doRegionList(a, c),
+    },
+    {
+      name: "trace_log_messages",
+      description:
+        "Windowed UE_LOG enumeration with verbosity floor + category + case-insensitive grep filters. " +
+        "Default cap 500 messages; `truncated:true` flags when more rows existed in the window.",
+      schema: LogMessagesArgs,
+      handler: (a, c) => doLogMessages(a, c),
     },
   ];
 

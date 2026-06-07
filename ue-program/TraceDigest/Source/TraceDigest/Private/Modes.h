@@ -28,8 +28,16 @@ namespace Modes
 	void RunFrame   (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
 	void RunCallers (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
 	void RunCallees (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
-	void RunThreads (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
-	void RunChannels(const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
+	void RunThreads  (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
+	void RunChannels (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
+
+	// v0.4 channel-bound modes. Each owns one provider; view-dispatched
+	// internally for the umbrella modes (Gpu, Counters).
+	void RunGpu      (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
+	void RunCounters (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
+	void RunBookmarks(const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
+	void RunRegions  (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
+	void RunLogs     (const TraceServices::IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json);
 }
 
 } // namespace TraceDigest

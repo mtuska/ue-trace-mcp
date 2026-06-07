@@ -1,0 +1,14 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "gpu",
+  "view": "fences",
+  "has_gpu": true,
+  "duration_ms": 16800.5,
+  "queue_filter": -1,
+  "events": [
+    { "signal_queue_id": 1, "signal_time_ms": 16.20, "signal_value": 100, "wait_queue_id": 2, "wait_time_ms": 16.55, "wait_value": 100, "stall_ms": 0.35 },
+    { "signal_queue_id": 2, "signal_time_ms": 32.40, "signal_value": 101, "wait_queue_id": 1, "wait_time_ms": 33.10, "wait_value": 101, "stall_ms": 0.70 }
+  ],
+  "total_in_window": 2,
+  "truncated": false
+}

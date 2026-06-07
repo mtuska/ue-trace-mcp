@@ -1,0 +1,12 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "bookmarks",
+  "duration_ms": 16800.5,
+  "total_in_window": 3,
+  "events": [
+    { "time_ms":  1234.5, "frame_idx": -1, "text": "spawn_wave_begin", "callstack_id": 0 },
+    { "time_ms":  6789.0, "frame_idx": -1, "text": "stress_phase_2",   "callstack_id": 0 },
+    { "time_ms": 14200.1, "frame_idx": -1, "text": "teardown",          "callstack_id": 0 }
+  ],
+  "truncated": false
+}

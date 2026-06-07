@@ -1,0 +1,11 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "gpu",
+  "view": "queues",
+  "has_gpu": true,
+  "duration_ms": 16800.5,
+  "queues": [
+    { "id": 1, "gpu": 0, "index": 0, "type": 0, "name": "Graphics", "display_name": "GPU0-Graphics0", "timeline_index": 42, "work_timeline_index": 43 },
+    { "id": 2, "gpu": 0, "index": 1, "type": 1, "name": "Compute",  "display_name": "GPU0-Compute1",  "timeline_index": 44, "work_timeline_index": 45 }
+  ]
+}

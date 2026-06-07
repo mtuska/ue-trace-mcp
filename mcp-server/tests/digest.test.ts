@@ -5,15 +5,22 @@ import { chmod } from "node:fs/promises";
 
 import { runTraceDigest, extractTrailingJson, TraceDigestError } from "../src/digest.js";
 import {
+  doBookmarkList,
   doCallees,
   doCallers,
   doChannels,
   doCompare,
+  doCounterCatalogue,
+  doCounterSeries,
   doCpuThreads,
   doDigest,
   doFrame,
   doFrames,
+  doGpuFences,
+  doGpuQueues,
+  doLogMessages,
   doOverview,
+  doRegionList,
   doTimeline,
 } from "../src/tools.js";
 import { TraceCache } from "../src/cache.js";
@@ -270,5 +277,69 @@ describe("v0.2 tools", () => {
     // disabled channels still show up so the LLM knows they exist but had no data.
     const memalloc = r.channels.find((c) => c.name === "memalloc");
     expect(memalloc?.enabled).toBe(false);
+  });
+
+  it("doGpuQueues: lists GPU queues with timeline indices", async () => {
+    const cache = new TraceCache(3);
+    const r = await doGpuQueues({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.view).toBe("queues");
+    expect(r.has_gpu).toBe(true);
+    expect(r.queues.length).toBeGreaterThan(0);
+    expect(r.queues[0]!.timeline_index).toBeGreaterThanOrEqual(0);
+  });
+
+  it("doGpuFences: returns resolved fence pairs with stall_ms", async () => {
+    const cache = new TraceCache(3);
+    const r = await doGpuFences({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.view).toBe("fences");
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(r.events[0]!.stall_ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it("doCounterCatalogue: lists every counter with metadata", async () => {
+    const cache = new TraceCache(3);
+    const r = await doCounterCatalogue({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.mode).toBe("counters");
+    expect(r.counters.length).toBeGreaterThan(0);
+    const found = r.counters.find((c) => c.name === "Zombies_Alive");
+    expect(found?.is_float).toBe(false);
+  });
+
+  it("doCounterSeries: returns downsampled time buckets for a counter", async () => {
+    const cache = new TraceCache(3);
+    const r = await doCounterSeries(
+      { file: FIXTURE_TRACE, counter: "Zombies_Alive" },
+      { cache, runOptions: { binary: MOCK_BIN } },
+    );
+    expect(r.found).toBe(true);
+    expect(r.series.length).toBeGreaterThan(0);
+    expect(r.series[0]!.count).toBeGreaterThan(0);
+    expect(r.series[0]!.avg).toBeGreaterThan(0);
+  });
+
+  it("doBookmarkList: returns time-ordered TRACE_BOOKMARK points", async () => {
+    const cache = new TraceCache(3);
+    const r = await doBookmarkList({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.mode).toBe("bookmarks");
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(r.events[0]!.text.length).toBeGreaterThan(0);
+  });
+
+  it("doRegionList: returns regions with categories[] hint", async () => {
+    const cache = new TraceCache(3);
+    const r = await doRegionList({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.mode).toBe("regions");
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(r.categories.length).toBeGreaterThan(0);
+    expect(r.events[0]!.duration_ms).toBeGreaterThan(0);
+  });
+
+  it("doLogMessages: returns filtered UE_LOG messages", async () => {
+    const cache = new TraceCache(3);
+    const r = await doLogMessages({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.mode).toBe("logs");
+    expect(r.events.length).toBeGreaterThan(0);
+    const error = r.events.find((e) => e.verbosity === "error");
+    expect(error).toBeDefined();
   });
 });

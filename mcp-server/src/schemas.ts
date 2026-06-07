@@ -175,3 +175,72 @@ export const ChannelsArgs = z.object({
   file,
 });
 export type ChannelsArgsT = z.infer<typeof ChannelsArgs>;
+
+// trace_gpu_queues: list GPU queues + their timeline indices.
+export const GpuQueuesArgs = z.object({
+  file,
+});
+export type GpuQueuesArgsT = z.infer<typeof GpuQueuesArgs>;
+
+// trace_gpu_fences: cross-queue signal/wait pairs ("stall" candidates).
+export const GpuFencesArgs = z.object({
+  file,
+  queue: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe("Restrict to fences signalled by this queue id. Default: all queues."),
+  limit: z.number().int().positive().optional().describe("Top-N resolved fences. Default 200."),
+});
+export type GpuFencesArgsT = z.infer<typeof GpuFencesArgs>;
+
+// trace_counter_catalogue: every counter + metadata. No filters; small.
+export const CounterCatalogueArgs = z.object({
+  file,
+});
+export type CounterCatalogueArgsT = z.infer<typeof CounterCatalogueArgs>;
+
+// trace_counter_series: downsampled time series for a named counter.
+export const CounterSeriesArgs = z.object({
+  file,
+  counter: z.string().describe("Exact (case-insensitive) counter name. Use trace_counter_catalogue to discover."),
+  buckets: z
+    .number()
+    .int()
+    .positive()
+    .max(4096)
+    .optional()
+    .describe("Number of equal-width time buckets. Default 256."),
+});
+export type CounterSeriesArgsT = z.infer<typeof CounterSeriesArgs>;
+
+// trace_bookmark_list: time-ordered TRACE_BOOKMARK points.
+export const BookmarkListArgs = z.object({
+  file,
+  limit: z.number().int().positive().optional().describe("Cap returned bookmarks. Default 500."),
+});
+export type BookmarkListArgsT = z.infer<typeof BookmarkListArgs>;
+
+// trace_region_list: TRACE_BEGIN/END_REGION spans (optionally one category).
+export const RegionListArgs = z.object({
+  file,
+  category: z.string().optional().describe("Restrict to this exact category (case-insensitive)."),
+  limit: z.number().int().positive().optional().describe("Cap returned regions. Default 500."),
+});
+export type RegionListArgsT = z.infer<typeof RegionListArgs>;
+
+// trace_log_messages: windowed UE_LOG enumeration with filters.
+export const LogMessagesArgs = z.object({
+  file,
+  verbosity: z
+    .enum(["fatal", "error", "warning", "warn", "display", "log", "verbose", "all"])
+    .optional()
+    .describe(
+      "Floor: messages strictly less severe than this are excluded. Default: verbose (=all).",
+    ),
+  category: z.string().optional().describe("Restrict to this exact category (case-insensitive)."),
+  grep: z.string().optional().describe("Case-insensitive substring filter on the message body."),
+  limit: z.number().int().positive().optional().describe("Cap returned messages. Default 500."),
+});
+export type LogMessagesArgsT = z.infer<typeof LogMessagesArgs>;

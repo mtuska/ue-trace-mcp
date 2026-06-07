@@ -1,28 +1,42 @@
 import { runTraceDigest, type DigestRunOptions } from "./digest.js";
 import { TraceCache, variantHash } from "./cache.js";
 import type {
+  BookmarkListArgsT,
   CallersArgsT,
   CalleesArgsT,
   ChannelsArgsT,
   CompareArgsT,
+  CounterCatalogueArgsT,
+  CounterSeriesArgsT,
   CpuThreadsArgsT,
   DigestArgsT,
   FrameArgsT,
   FramesArgsT,
+  GpuFencesArgsT,
+  GpuQueuesArgsT,
+  LogMessagesArgsT,
   OverviewArgsT,
+  RegionListArgsT,
   StatusArgsT,
   TimelineArgsT,
   UnloadArgsT,
 } from "./schemas.js";
 import type {
+  BookmarkListOutput,
   ButterflyOutput,
   ChannelsOutput,
   CompareOutput,
+  CounterCatalogueOutput,
+  CounterSeriesOutput,
   DigestOutput,
   FrameOutput,
   FrameEvent,
   FramesOutput,
+  GpuFencesOutput,
+  GpuQueuesOutput,
+  LogMessagesOutput,
   OverviewOutput,
+  RegionListOutput,
   StatusOutput,
   ThreadsOutput,
   TimelineOutput,
@@ -192,6 +206,124 @@ export async function doChannels(args: ChannelsArgsT, ctx: ToolContext): Promise
     { mode: "channels", file: args.file },
     ctx.runOptions,
   )) as ChannelsOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doGpuQueues(args: GpuQueuesArgsT, ctx: ToolContext): Promise<GpuQueuesOutput> {
+  const variant = variantHash("gpu_queues", {});
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as GpuQueuesOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "gpu", file: args.file, view: "queues" },
+    ctx.runOptions,
+  )) as GpuQueuesOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doGpuFences(args: GpuFencesArgsT, ctx: ToolContext): Promise<GpuFencesOutput> {
+  const variant = variantHash("gpu_fences", { queue: args.queue, limit: args.limit });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as GpuFencesOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "gpu", file: args.file, view: "fences", queue: args.queue, limit: args.limit },
+    ctx.runOptions,
+  )) as GpuFencesOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doCounterCatalogue(
+  args: CounterCatalogueArgsT,
+  ctx: ToolContext,
+): Promise<CounterCatalogueOutput> {
+  const variant = variantHash("counter_catalogue", {});
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as CounterCatalogueOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "counters", file: args.file },
+    ctx.runOptions,
+  )) as CounterCatalogueOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doCounterSeries(
+  args: CounterSeriesArgsT,
+  ctx: ToolContext,
+): Promise<CounterSeriesOutput> {
+  const variant = variantHash("counter_series", { counter: args.counter, buckets: args.buckets });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as CounterSeriesOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "counters", file: args.file, counter: args.counter, buckets: args.buckets },
+    ctx.runOptions,
+  )) as CounterSeriesOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doBookmarkList(
+  args: BookmarkListArgsT,
+  ctx: ToolContext,
+): Promise<BookmarkListOutput> {
+  const variant = variantHash("bookmark_list", { limit: args.limit });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as BookmarkListOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "bookmarks", file: args.file, limit: args.limit },
+    ctx.runOptions,
+  )) as BookmarkListOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doRegionList(
+  args: RegionListArgsT,
+  ctx: ToolContext,
+): Promise<RegionListOutput> {
+  const variant = variantHash("region_list", { category: args.category, limit: args.limit });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as RegionListOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "regions", file: args.file, category: args.category, limit: args.limit },
+    ctx.runOptions,
+  )) as RegionListOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doLogMessages(
+  args: LogMessagesArgsT,
+  ctx: ToolContext,
+): Promise<LogMessagesOutput> {
+  const variant = variantHash("log_messages", {
+    verbosity: args.verbosity,
+    category: args.category,
+    grep: args.grep,
+    limit: args.limit,
+  });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as LogMessagesOutput;
+
+  const out = (await runTraceDigest(
+    {
+      mode: "logs",
+      file: args.file,
+      verbosity: args.verbosity,
+      category: args.category,
+      grep: args.grep,
+      limit: args.limit,
+    },
+    ctx.runOptions,
+  )) as LogMessagesOutput;
   await ctx.cache.put(args.file, variant, out);
   return out;
 }

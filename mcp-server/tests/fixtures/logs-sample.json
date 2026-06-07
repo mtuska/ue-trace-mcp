@@ -1,0 +1,17 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "logs",
+  "duration_ms": 16800.5,
+  "total_in_window": 5,
+  "verbosity_floor": "verbose",
+  "category_filter": "",
+  "grep": "",
+  "events": [
+    { "idx": 0, "time_ms":   100.5, "category": "LogInit",        "verbosity": "display", "message": "Engine init complete",          "file": "Engine/EngineInit.cpp", "line": 1024 },
+    { "idx": 1, "time_ms":  2345.6, "category": "LogZombieProto", "verbosity": "warning", "message": "wave 2 timed out",              "file": "ZombieProto/Wave.cpp",  "line": 88   },
+    { "idx": 2, "time_ms":  7890.1, "category": "LogZombieProto", "verbosity": "error",   "message": "spawn budget exceeded",          "file": "ZombieProto/Spawn.cpp", "line": 42   },
+    { "idx": 3, "time_ms": 12000.0, "category": "LogRenderer",    "verbosity": "log",     "message": "shadow cascade resized",         "file": "Engine/Shadow.cpp",     "line": 217  },
+    { "idx": 4, "time_ms": 15400.0, "category": "LogZombieProto", "verbosity": "verbose", "message": "perception update done",         "file": "ZombieProto/AI.cpp",    "line": 311  }
+  ],
+  "truncated": false
+}

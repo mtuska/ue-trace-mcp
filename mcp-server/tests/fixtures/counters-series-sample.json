@@ -1,0 +1,18 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "counters",
+  "duration_ms": 16800.5,
+  "counter_count": 3,
+  "counter": "Zombies_Alive",
+  "found": true,
+  "counter_id": 1,
+  "is_float": false,
+  "buckets": 4,
+  "total_samples": 1050,
+  "series": [
+    { "t_ms":  2100.0, "min": 12,  "max": 48,  "avg": 30.4,  "count": 260 },
+    { "t_ms":  6300.0, "min": 28,  "max": 76,  "avg": 54.1,  "count": 261 },
+    { "t_ms": 10500.0, "min": 45,  "max": 120, "avg": 82.7,  "count": 264 },
+    { "t_ms": 14700.0, "min": 60,  "max": 152, "avg": 110.3, "count": 265 }
+  ]
+}

@@ -186,6 +186,151 @@ export interface ChannelsOutput {
   channels: ChannelEntry[];
 }
 
+// GPU queues — mirror of FGpuQueueInfo.
+export interface GpuQueue {
+  id: number;
+  gpu: number;
+  index: number;
+  type: number;
+  name: string;
+  display_name: string;
+  timeline_index: number;
+  work_timeline_index: number;
+}
+
+export interface GpuQueuesOutput {
+  file: string;
+  mode: "gpu";
+  view: "queues";
+  has_gpu: boolean;
+  duration_ms: number;
+  queues: GpuQueue[];
+}
+
+// GPU resolved fence pairs — cross-queue stall analysis.
+export interface GpuFenceEvent {
+  signal_queue_id: number;
+  signal_time_ms: number;
+  signal_value: number;
+  wait_queue_id: number;
+  wait_time_ms: number;
+  wait_value: number;
+  stall_ms: number;
+}
+
+export interface GpuFencesOutput {
+  file: string;
+  mode: "gpu";
+  view: "fences";
+  has_gpu: boolean;
+  duration_ms: number;
+  queue_filter: number;
+  total_in_window: number;
+  truncated: boolean;
+  events: GpuFenceEvent[];
+}
+
+// Counter catalogue — metadata only.
+export interface CounterMeta {
+  id: number;
+  name: string;
+  group: string;
+  description: string;
+  is_float: boolean;
+  reset_every_frame: boolean;
+  display_hint: "memory" | "none";
+}
+
+export interface CounterCatalogueOutput {
+  file: string;
+  mode: "counters";
+  duration_ms: number;
+  counter_count: number;
+  counters: CounterMeta[];
+}
+
+// Counter series — time-bucketed values.
+export interface CounterSeriesBucket {
+  t_ms: number;
+  min: number;
+  max: number;
+  avg: number;
+  count: number;
+}
+
+export interface CounterSeriesOutput {
+  file: string;
+  mode: "counters";
+  duration_ms: number;
+  counter_count: number;
+  counter: string;
+  found: boolean;
+  counter_id?: number;
+  is_float?: boolean;
+  buckets?: number;
+  total_samples?: number;
+  series: CounterSeriesBucket[];
+}
+
+export interface BookmarkEvent {
+  time_ms: number;
+  frame_idx: number;
+  text: string;
+  callstack_id: number;
+}
+
+export interface BookmarkListOutput {
+  file: string;
+  mode: "bookmarks";
+  duration_ms: number;
+  total_in_window: number;
+  truncated: boolean;
+  events: BookmarkEvent[];
+}
+
+export interface RegionEvent {
+  name: string;
+  category: string;
+  begin_ms: number;
+  end_ms: number;
+  duration_ms: number;
+  depth: number;
+  id: number;
+}
+
+export interface RegionListOutput {
+  file: string;
+  mode: "regions";
+  duration_ms: number;
+  total_in_window: number;
+  category_filter: string;
+  categories: string[];
+  truncated: boolean;
+  events: RegionEvent[];
+}
+
+export interface LogEvent {
+  idx: number;
+  time_ms: number;
+  category: string;
+  verbosity: string;
+  message: string;
+  file: string;
+  line: number;
+}
+
+export interface LogMessagesOutput {
+  file: string;
+  mode: "logs";
+  duration_ms: number;
+  total_in_window: number;
+  verbosity_floor: string;
+  category_filter: string;
+  grep: string;
+  truncated: boolean;
+  events: LogEvent[];
+}
+
 // --- Daemon control responses ---
 
 export interface UnloadOutput {
@@ -218,4 +363,11 @@ export type AnyDigestOutput =
   | FrameOutput
   | ButterflyOutput
   | ThreadsOutput
-  | ChannelsOutput;
+  | ChannelsOutput
+  | GpuQueuesOutput
+  | GpuFencesOutput
+  | CounterCatalogueOutput
+  | CounterSeriesOutput
+  | BookmarkListOutput
+  | RegionListOutput
+  | LogMessagesOutput;

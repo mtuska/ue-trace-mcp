@@ -19,6 +19,11 @@ enum class EMode : uint8
 	Callees,   // butterfly: what this event called
 	Threads,   // per-thread CPU breakdown
 	Channels,  // enumerate trace channels present in the capture
+	Gpu,       // GPU queues + per-queue timeline + fences (view-dispatched)
+	Counters,  // counter catalogue + per-counter time series (view-dispatched)
+	Bookmarks, // TRACE_BOOKMARK point markers
+	Regions,   // TRACE_BEGIN/END_REGION time spans
+	Logs,      // captured UE_LOG output, windowed + filtered
 };
 
 struct FArgs
@@ -35,6 +40,16 @@ struct FArgs
 	int32 FrameIndex = -1;      // -frame=N for single-frame mode
 	double Threshold = 0.0;     // -threshold= for compare (ms delta floor)
 	bool bDisableCache = false; // -nocache to skip the persistent analysis cache
+
+	// v0.4 channel-aware additions. Empty/zero defaults mean "not supplied"
+	// — modes that need a value validate post-parse.
+	FString View;          // -view=<name> for umbrella modes (gpu, counters, …)
+	FString Counter;       // -counter=<name> for counter series queries
+	FString Category;      // -category=<name> for regions/logs filtering
+	FString Verbosity;     // -verbosity=<error|warn|display|log|verbose|all>
+	FString Grep;          // -grep=<substr> for log message filtering
+	int32 Buckets = 256;   // -buckets=<N> bins for time-series downsampling
+	int32 Queue = -1;      // -queue=<id> for per-queue GPU views
 
 	// Daemon mode (Program target only). The Program loads the trace once and
 	// services repeated queries over a Unix socket until idle timeout or
