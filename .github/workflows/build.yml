@@ -82,30 +82,47 @@ jobs:
             "https://x-access-token:${UE_TOKEN}@github.com/EpicGames/UnrealEngine.git" ue
           git -C ue log -1 --oneline
 
+      # Two non-obvious requirements when running Setup non-interactively:
+      #   1. --force, not the default --prompt — without it the `read` against
+      #      a non-TTY returns EOF and GitDependencies skips overwrite checks.
+      #   2. GitDependencies' platform filter is --exclude=<folder>, NOT
+      #      --exclude-target-platform=<X>. The latter looks reasonable but
+      #      isn't recognised; GitDependencies then prints "Invalid command
+      #      line parameter" and EXITS 0, so Setup.sh continues happily even
+      #      though it has downloaded nothing. Then Build.sh later fails
+      #      looking for the bundled DotNet SDK that was never fetched.
       - name: Setup UE deps (Linux)
         if: runner.os == 'Linux'
         working-directory: ue
         run: |
-          ./Setup.sh --threads=$(nproc) \
-            --exclude-target-platform=Mac \
-            --exclude-target-platform=IOS \
-            --exclude-target-platform=Android \
-            --exclude-target-platform=TVOS \
-            --exclude-target-platform=VisionOS \
-            --exclude-target-platform=Win64
+          ./Setup.sh --force --threads=$(nproc) \
+            --exclude=Mac \
+            --exclude=IOS \
+            --exclude=Android \
+            --exclude=TVOS \
+            --exclude=VisionOS \
+            --exclude=Win64
 
+      # On Windows we skip Setup.bat and call GitDependencies.exe directly:
+      # Setup.bat's error path is `pause` (wait-for-keypress), which would
+      # hang the job until the 6h GH Actions timeout if GitDependencies ever
+      # legitimately fails. Setup.bat's other duties (vc_redist install,
+      # UnrealVersionSelector register, git hooks) aren't needed for a
+      # headless Program build on a runner that already has MSVC + the C++
+      # redistributable installed.
       - name: Setup UE deps (Windows)
         if: runner.os == 'Windows'
         working-directory: ue
         shell: cmd
         run: |
-          Setup.bat --threads=%NUMBER_OF_PROCESSORS% ^
-            --exclude-target-platform=Mac ^
-            --exclude-target-platform=IOS ^
-            --exclude-target-platform=Android ^
-            --exclude-target-platform=TVOS ^
-            --exclude-target-platform=VisionOS ^
-            --exclude-target-platform=Linux
+          Engine\Binaries\DotNET\GitDependencies\win-x64\GitDependencies.exe ^
+            --force --threads=%NUMBER_OF_PROCESSORS% ^
+            --exclude=Mac ^
+            --exclude=IOS ^
+            --exclude=Android ^
+            --exclude=TVOS ^
+            --exclude=VisionOS ^
+            --exclude=Linux
 
       # Drop ue-program into the engine source tree. Symlink on Linux, copy on
       # Windows (symlinks need Developer Mode or admin, and we don't want to

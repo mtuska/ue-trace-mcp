@@ -18,3 +18,6 @@ ue-program/**/.vs/
 .idea/
 *.swp
 .DS_Store
+
+# Local workflow log dumps (downloaded from GH Actions for debugging)
+logs/
