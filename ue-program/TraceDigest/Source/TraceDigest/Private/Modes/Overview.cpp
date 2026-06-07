@@ -7,6 +7,7 @@
 
 #include "ProfilingDebugging/MiscTrace.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Model/Channel.h"
 #include "TraceServices/Model/Frames.h"
 #include "TraceServices/Model/TimingProfiler.h"
 
@@ -15,19 +16,23 @@ using namespace TraceServices;
 namespace TraceDigest
 {
 
-// Composite "first question to ask" view. Combines:
-//   * top-N events  (digest-style, but capped tighter — default 10)
-//   * frame_stats   (min/avg/p50/p95/p99/max of Game-thread frame durations)
-//   * slowest_frames (top-3 by duration with their idx)
+// Channel-aware composite "first question to ask" view. Top-level keys:
+//   file, mode, duration_ms, channels[]
+// Plus one sub-object per category present in the trace. v0.4.0 populates
+// `cpu` (frame stats, slowest frames, top timers) and the `channels` array;
+// later passes add `gpu`, `memory`, `memalloc`, `counters`, `logs`,
+// `bookmarks`, `regions` blocks as those providers come online.
 //
-// All produced in one editor invocation — saves the LLM from spawning the
-// editor three times to ask "what's hot? how's the framerate? where are the
-// spikes?". The events array reuses the digest schema verbatim.
+// The CPU sub-object keeps the EXACT v0.3 keys (frame_count, frame_stats,
+// slowest_frames, events) so CPU-only callers only need a path-prefix bump
+// to migrate. The top-level reshuffle IS a breaking change against v0.3 —
+// hence the v0.4.0 bump.
 void Modes::RunOverview(const IAnalysisSession& Session, const FArgs& Args, FJsonOut& Json)
 {
 	FAnalysisSessionReadScope Lock(Session);
 	const ITimingProfilerProvider* TimingProvider = ReadTimingProfilerProvider(Session);
 	const IFrameProvider& Frames = ReadFrameProvider(Session);
+	const IChannelProvider* ChannelProvider = ReadChannelProvider(Session);
 
 	const double EndSec = Session.GetDurationSeconds();
 	const uint64 GameCount = Frames.GetFrameCount(TraceFrameType_Game);
@@ -105,6 +110,25 @@ void Modes::RunOverview(const IAnalysisSession& Session, const FArgs& Args, FJso
 	Json.KeyStr(TEXT("file"), Args.File);
 	Json.KeyStr(TEXT("mode"), FArgs::ModeName(Args.Mode));
 	Json.KeyNum(TEXT("duration_ms"), EndSec * 1000.0);
+
+	// channels[] — names of every channel known to the provider, regardless
+	// of whether enabled or disabled. The LLM uses this to pick which other
+	// `trace_<channel>_*` tools have data to return.
+	Json.Key(TEXT("channels"));
+	Json.BeginArray();
+	if (ChannelProvider)
+	{
+		for (const FChannelEntry& C : ChannelProvider->GetChannels())
+		{
+			Json.Str(C.Name);
+		}
+	}
+	Json.EndArray();
+
+	// cpu block — keeps v0.3 keys exactly so consumers only need a path
+	// prefix bump.
+	Json.Key(TEXT("cpu"));
+	Json.BeginObject();
 	Json.KeyInt(TEXT("frame_count"), static_cast<int64>(GameCount));
 
 	Json.Key(TEXT("frame_stats"));
@@ -147,7 +171,9 @@ void Modes::RunOverview(const IAnalysisSession& Session, const FArgs& Args, FJso
 		Json.EndObject();
 	}
 	Json.EndArray();
-	Json.EndObject();
+	Json.EndObject(); // cpu
+
+	Json.EndObject(); // root
 }
 
 } // namespace TraceDigest

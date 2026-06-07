@@ -93,14 +93,25 @@ export interface FrameStats {
   max_ms: number;
 }
 
-export interface OverviewOutput {
-  file: string;
-  mode: "overview";
-  duration_ms: number;
+// v0.4 channel-aware shape. Top-level has only session-wide fields; every
+// category gets its own sub-object. CPU keeps the v0.3 keys verbatim so
+// consumers only need to prefix their paths with `cpu.`.
+export interface OverviewCpu {
   frame_count: number;
   frame_stats: FrameStats;
   slowest_frames: Array<{ idx: number; duration_ms: number }>;
   events: DigestEvent[];
+}
+
+export interface OverviewOutput {
+  file: string;
+  mode: "overview";
+  duration_ms: number;
+  /** Channel names present in the trace (regardless of enabled state). */
+  channels: string[];
+  cpu?: OverviewCpu;
+  // gpu, memory, memalloc, counters, logs, bookmarks, regions land in
+  // subsequent passes as those provider blocks come online.
 }
 
 export interface FrameDrillEvent {

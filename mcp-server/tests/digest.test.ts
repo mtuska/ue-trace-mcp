@@ -207,13 +207,19 @@ describe("tool dispatchers", () => {
 });
 
 describe("v0.2 tools", () => {
-  it("doOverview: returns frame_stats, slowest_frames, and top events", async () => {
+  it("doOverview: returns channel-aware shape with cpu sub-block", async () => {
     const cache = new TraceCache(3);
     const r = await doOverview({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
     expect(r.mode).toBe("overview");
-    expect(r.frame_stats.p95_ms).toBeGreaterThan(0);
-    expect(r.slowest_frames.length).toBeGreaterThan(0);
-    expect(r.events.length).toBeGreaterThan(0);
+    expect(r.duration_ms).toBeGreaterThan(0);
+    expect(r.channels.length).toBeGreaterThan(0);
+    // v0.4 breaking change: frame_stats / slowest_frames / events live under
+    // `cpu`, not at the top level. The cpu sub-object keeps the v0.3 keys
+    // verbatim.
+    expect(r.cpu).toBeDefined();
+    expect(r.cpu!.frame_stats.p95_ms).toBeGreaterThan(0);
+    expect(r.cpu!.slowest_frames.length).toBeGreaterThan(0);
+    expect(r.cpu!.events.length).toBeGreaterThan(0);
   });
 
   it("doFrame: returns events within one frame", async () => {
