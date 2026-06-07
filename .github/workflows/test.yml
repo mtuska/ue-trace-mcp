@@ -15,31 +15,23 @@ concurrency:
 permissions:
   contents: read
 
+# Linux only. The TS surface is portable, npm behaviour doesn't meaningfully
+# differ across OSes for our package, and the daemon path (Unix sockets +
+# process.getuid) is POSIX-only. Windows is out anyway because mock-bin.mjs
+# is invoked via shebang. macOS would just duplicate the ubuntu run.
 jobs:
   mcp-server:
-    name: mcp-server (node ${{ matrix.node }}, ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: mcp-server
-
-    # The TS server uses `process.getuid` and a Unix-socket daemon spawn path,
-    # both POSIX-only. Tests have enableDaemon=false and use a mock binary, so
-    # the daemon code is imported but not exercised — that part is portable.
-    # We test on linux + macos; Windows is out for now since mock-bin.mjs is
-    # invoked as a shebang-bearing executable script that Windows won't honor.
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        node: ['20']
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '20'
           cache: npm
           cache-dependency-path: mcp-server/package-lock.json
 
