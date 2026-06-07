@@ -44,6 +44,23 @@ export interface DaemonStatus {
   requests_served: number;
 }
 
+/**
+ * In-flight daemon spawn — the trace's binary has been launched but hasn't
+ * yet emitted DAEMON_READY. Surfaced through `loadingDaemons()` so the MCP
+ * client can tell a slow-loading large trace apart from a stuck process.
+ *
+ * `last_progress_elapsed_ms` is the value the binary itself reported in its
+ * most recent `LOADING_PROGRESS: elapsed_ms=N` stderr line; `wall_elapsed_ms`
+ * is the MCP server's own clock since spawn — they should track closely on
+ * a healthy load.
+ */
+export interface LoadingDaemonStatus {
+  file: string;
+  pid: number | null;
+  wall_elapsed_ms: number;
+  last_progress_elapsed_ms: number | null;
+}
+
 export interface DaemonOptions {
   /** Path to the TraceDigest Program binary. Required for daemon mode. */
   binary: string;
@@ -57,6 +74,13 @@ export interface DaemonOptions {
   budget?: MemoryBudget;
   /** Where to keep sockets. Default /tmp/ue-trace-mcp-<uid>/. */
   socketDir?: string;
+  /**
+   * Hard timeout for the spawn-to-DAEMON_READY wait. Default 600s (10 min).
+   * Override via `TRACE_SPAWN_TIMEOUT_SEC`. Multi-GB traces can take minutes
+   * to parse; the old 30s cap was tuned for the ZombieProto-scale traces and
+   * killed legitimate loads on larger captures.
+   */
+  spawnTimeoutSec?: number;
 }
 
 export class DaemonError extends Error {
@@ -68,8 +92,20 @@ export class DaemonError extends Error {
 
 const READY_TOKEN = "DAEMON_READY";
 
+interface LoadingSpawn {
+  file: string;
+  absPath: string;
+  pid: number | null;
+  spawnedAt: number;
+  /** Most recent value parsed from `LOADING_PROGRESS: elapsed_ms=<N>` on stderr. */
+  lastProgressElapsedMs: number | null;
+}
+
 export class DaemonRegistry {
   private readonly daemons = new Map<string, DaemonHandle>();
+  /** In-flight spawns. Keyed the same way as `daemons` so a successful spawn
+   * just moves the entry from one map to the other. */
+  private readonly loading = new Map<string, LoadingSpawn>();
   private readonly opts: Required<Omit<DaemonOptions, "budget">> & { budget: MemoryBudget };
   private reapTimer: NodeJS.Timeout | null = null;
   private isShuttingDown = false;
@@ -82,6 +118,9 @@ export class DaemonRegistry {
       maxDaemons: opts.maxDaemons ?? 5,
       budget: opts.budget ?? readBudgetFromEnv(),
       socketDir: opts.socketDir ?? join(tmpdir(), `ue-trace-mcp-${process.getuid?.() ?? "u"}`),
+      spawnTimeoutSec:
+        opts.spawnTimeoutSec
+        ?? (Number(process.env.TRACE_SPAWN_TIMEOUT_SEC) || 600),
     };
   }
 
@@ -229,6 +268,37 @@ export class DaemonRegistry {
       detached: false, // we own lifecycle; node tracks the child
     });
 
+    // Register the in-flight spawn so trace_status surfaces it while we
+    // wait. Removed in the finally below (success → moved to `daemons`;
+    // failure → just removed). Without this, `trace_status` would show
+    // zero daemons during long loads even though a child is alive.
+    const loadingEntry: LoadingSpawn = {
+      file: absPath,
+      absPath,
+      pid: child.pid ?? null,
+      spawnedAt: Date.now(),
+      lastProgressElapsedMs: null,
+    };
+    this.loading.set(key, loadingEntry);
+
+    // Parse `LOADING_PROGRESS: elapsed_ms=<N>` lines from stderr so the
+    // status surface knows the daemon's own clock vs ours. The C++ side
+    // emits one every ~500ms while LoadEx is in flight.
+    const progressRe = /LOADING_PROGRESS:\s*elapsed_ms\s*=\s*(\d+)/g;
+    let stderrBuf = "";
+    const onStderr = (b: Buffer) => {
+      stderrBuf += b.toString("utf8");
+      let m: RegExpExecArray | null;
+      let lastSeen: number | null = null;
+      while ((m = progressRe.exec(stderrBuf)) !== null) {
+        lastSeen = Number(m[1]);
+      }
+      if (lastSeen !== null) loadingEntry.lastProgressElapsedMs = lastSeen;
+      // Trim once stderr grows large so we don't hold MBs in memory.
+      if (stderrBuf.length > 1 << 20) stderrBuf = stderrBuf.slice(-(1 << 18));
+    };
+    child.stderr?.on("data", onStderr);
+
     // Wait until the daemon writes DAEMON_READY to stdout. UE startup output
     // (log lines, banner) interleaves; we just scan the buffer for the token.
     const readyPromise = new Promise<void>((resolve, reject) => {
@@ -244,16 +314,28 @@ export class DaemonRegistry {
       child.once("exit", (code) =>
         reject(new DaemonError(`daemon exited before ready (code=${code})`, "spawn-failed")),
       );
-      // 30s safety net. A cold parse on a multi-GB trace can take a while.
-      setTimeout(() => reject(new DaemonError(`daemon spawn timed out`, "spawn-timeout")), 30_000);
+      setTimeout(
+        () => reject(new DaemonError(
+          `daemon spawn timed out after ${this.opts.spawnTimeoutSec}s — override via TRACE_SPAWN_TIMEOUT_SEC`,
+          "spawn-timeout",
+        )),
+        this.opts.spawnTimeoutSec * 1000,
+      );
     });
 
     try {
       await readyPromise;
     } catch (e) {
+      this.loading.delete(key);
+      child.stderr?.off("data", onStderr);
       try { child.kill("SIGKILL"); } catch {}
       throw e;
     }
+
+    // Load completed — drop the in-flight entry. Stderr listener stays
+    // attached but produces no more progress lines (the C++ side stops
+    // emitting them once LoadEx returns).
+    this.loading.delete(key);
 
     const handle: DaemonHandle = {
       key,
@@ -279,6 +361,21 @@ export class DaemonRegistry {
 
     this.daemons.set(key, handle);
     return handle;
+  }
+
+  /**
+   * Snapshot of every daemon mid-spawn. Each entry's `wall_elapsed_ms` is
+   * computed at call time so successive polls show progress without us
+   * having to maintain a heartbeat.
+   */
+  loadingDaemons(): LoadingDaemonStatus[] {
+    const now = Date.now();
+    return [...this.loading.values()].map((l) => ({
+      file: l.file,
+      pid: l.pid,
+      wall_elapsed_ms: now - l.spawnedAt,
+      last_progress_elapsed_ms: l.lastProgressElapsedMs,
+    }));
   }
 
   private pickLruVictim(): DaemonHandle | undefined {

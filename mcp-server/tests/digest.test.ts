@@ -26,6 +26,7 @@ import {
   doMemoryTags,
   doMemoryTrackers,
   doQuery,
+  doStatus,
   doOverview,
   doRegionList,
   doTimeline,
@@ -428,5 +429,11 @@ describe("v0.2 tools", () => {
     expect(names).toContain("frames_where_counter_exceeds");
     expect(names).toContain("events_inside_region");
     expect(names).toContain("logs_around_slow_frames");
+  });
+
+  it("doStatus: includes a `loading` array even when none are mid-load", async () => {
+    const r = await doStatus({}, { cache: new TraceCache(3), runOptions: { binary: MOCK_BIN } });
+    expect(Array.isArray(r.loading)).toBe(true);
+    expect(r.loading.length).toBe(0);
   });
 });

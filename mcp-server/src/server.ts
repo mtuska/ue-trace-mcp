@@ -207,7 +207,11 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
       name: "trace_status",
       description:
         "Report current daemon state: per-trace PID, uptime, idle time, estimated and actual RSS, " +
-        "plus system memory available. Use to see what's resident and how much headroom you have.",
+        "plus system memory available AND any daemons mid-load via `loading[]`. Multi-GB traces " +
+        "can take minutes to parse; the LLM can poll this tool to tell a busy daemon apart from " +
+        "a stuck one. Each `loading` row carries `wall_elapsed_ms` (server clock since spawn) and " +
+        "`last_progress_elapsed_ms` (the binary's own self-reported heartbeat) — divergence " +
+        "between the two flags a stuck process.",
       schema: StatusArgs,
       handler: (a, c) => doStatus(a, c),
     },

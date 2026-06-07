@@ -528,9 +528,25 @@ export interface StatusDaemonRow {
   requests_served: number;
 }
 
+/** Daemon that's been spawned but hasn't finished parsing its trace yet. */
+export interface StatusLoadingRow {
+  file: string;
+  pid: number | null;
+  /** Wall-clock ms since the MCP server spawned the binary. */
+  wall_elapsed_ms: number;
+  /**
+   * Most recent `elapsed_ms` value reported by the binary itself via its
+   * `LOADING_PROGRESS:` heartbeat (emitted every ~500ms during LoadEx).
+   * `null` until the first line arrives; a value that stops advancing
+   * while `wall_elapsed_ms` keeps climbing is a stuck load.
+   */
+  last_progress_elapsed_ms: number | null;
+}
+
 export interface StatusOutput {
   system: { available_mb: number; total_mb: number };
   daemons: StatusDaemonRow[];
+  loading: StatusLoadingRow[];
 }
 
 export type AnyDigestOutput =

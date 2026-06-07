@@ -7,6 +7,7 @@
 #include "Modes.h"
 #include "Session.h"
 
+#include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/FileHelper.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -15,6 +16,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogTraceDaemon, Log, All);
 
 #if PLATFORM_LINUX || PLATFORM_MAC
 #	include <arpa/inet.h>
+#	include <atomic>
+#	include <cstdio>
 #	include <errno.h>
 #	include <poll.h>
 #	include <signal.h>
@@ -23,6 +26,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogTraceDaemon, Log, All);
 #	include <sys/stat.h>
 #	include <sys/types.h>
 #	include <sys/un.h>
+#	include <thread>
 #	include <unistd.h>
 #endif
 
@@ -279,11 +283,50 @@ int RunDaemon(const FArgs& BootArgs)
 	State.StartedAt = FPlatformTime::Seconds();
 
 	// Parse the trace once. This is the expensive call; everything afterwards
-	// reuses the session.
+	// reuses the session. Multi-GB traces can take minutes — without
+	// feedback the spawner just sees the daemon "hanging". We run a side
+	// thread that emits `LOADING_PROGRESS: elapsed_ms=<N>` lines to stderr
+	// every ~500ms while LoadEx is in flight; the MCP server captures those
+	// lines and surfaces them through trace_status so the LLM can tell a
+	// busy load apart from a stuck one.
 	{
 		const double T0 = FPlatformTime::Seconds();
+		std::atomic<bool> bDone{false};
+		std::thread ProgressThread([&]()
+		{
+			const double Start = FPlatformTime::Seconds();
+			while (!bDone.load(std::memory_order_relaxed))
+			{
+				// Sleep in 100ms chunks so the thread joins quickly once
+				// LoadEx returns.
+				for (int i = 0; i < 5; ++i)
+				{
+					if (bDone.load(std::memory_order_relaxed)) break;
+					FPlatformProcess::Sleep(0.1f);
+				}
+				if (bDone.load(std::memory_order_relaxed)) break;
+				const int64 ElapsedMs = static_cast<int64>(
+					(FPlatformTime::Seconds() - Start) * 1000.0);
+				char Buf[80];
+				int Len = std::snprintf(
+					Buf, sizeof(Buf),
+					"LOADING_PROGRESS: elapsed_ms=%lld\n",
+					static_cast<long long>(ElapsedMs));
+				if (Len > 0)
+				{
+					const ssize_t _ = ::write(STDERR_FILENO, Buf, static_cast<size_t>(Len));
+					(void)_;
+				}
+			}
+		});
+
 		FString LoadErr;
-		if (!State.Trace.LoadEx(BootArgs.File, BootArgs.bDisableCache, LoadErr))
+		const bool bOk = State.Trace.LoadEx(BootArgs.File, BootArgs.bDisableCache, LoadErr);
+
+		bDone.store(true, std::memory_order_relaxed);
+		if (ProgressThread.joinable()) ProgressThread.join();
+
+		if (!bOk)
 		{
 			UE_LOG(LogTraceDaemon, Error, TEXT("load: %s"), *LoadErr);
 			return 2;

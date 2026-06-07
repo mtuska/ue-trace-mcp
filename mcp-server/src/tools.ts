@@ -493,12 +493,14 @@ export async function doUnload(args: UnloadArgsT, ctx: ToolContext): Promise<Unl
 
 export async function doStatus(_args: StatusArgsT, ctx: ToolContext): Promise<StatusOutput> {
   if (!ctx.daemons) {
-    return { system: { available_mb: -1, total_mb: -1 }, daemons: [] };
+    return { system: { available_mb: -1, total_mb: -1 }, daemons: [], loading: [] };
   }
   const sys = await ctx.daemons.systemMemory();
   const rows = await ctx.daemons.status();
+  const loading = ctx.daemons.loadingDaemons();
   return {
     system: { available_mb: sys.availableMb, total_mb: sys.totalMb },
     daemons: rows,
+    loading,
   };
 }
