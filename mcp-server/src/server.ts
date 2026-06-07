@@ -1,10 +1,6 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import type { ZodTypeAny } from "zod";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { ZodObject, ZodRawShape, ZodTypeAny } from "zod";
 
 import { TraceCache } from "./cache.js";
 import {
@@ -76,7 +72,52 @@ export interface ServerOptions {
   daemons?: DaemonRegistry;
 }
 
-interface ToolDef<S extends ZodTypeAny> {
+// Server-level instructions surfaced via the MCP `instructions` field on
+// `initialize`. Clients that show a server description (including Claude
+// Code, Claude Desktop) read this. Keep it terse — the per-tool
+// descriptions carry the details; this is the orientation pass.
+const SERVER_INSTRUCTIONS = `\
+ue-trace-mcp wraps Unreal Engine .utrace captures. It surfaces every UE
+trace category (cpu, gpu, frames, regions, bookmarks, counters, logs,
+memory/LLM tags, per-allocation tracking) as MCP tools.
+
+Suggested workflow for a fresh trace:
+  1. trace_channels    — see which channels were actually captured.
+  2. trace_overview    — first-look snapshot. CPU frame stats + slowest
+                         frames + top events live under \`cpu\`; memory
+                         and memalloc summaries sit alongside.
+  3. Then drill down with the channel-specific tools or use
+     trace_query (intent-dispatched) for cross-cutting questions.
+
+Naming convention:
+  * Flat names (trace_overview, trace_digest, …) when the verb is
+    channel-agnostic — pass \`channel: "cpu" | "gpu" | "region"\` to
+    redirect; default is cpu.
+  * trace_<channel>_<purpose> when the verb is tied to one provider
+    (trace_cpu_threads, trace_gpu_queues, trace_memory_tags, …).
+
+Long loads: multi-GB traces can take minutes to parse. trace_status now
+returns a \`loading[]\` array alongside \`daemons[]\`; each entry carries
+\`wall_elapsed_ms\` (MCP-side clock) and \`last_progress_elapsed_ms\`
+(the binary's own heartbeat, ~500ms cadence). If wall keeps climbing
+but last_progress freezes, the load is stuck.
+
+trace_query intents (use intent="list" to discover the registry):
+  * frames_where_counter_exceeds — find frames where a counter crosses
+    a threshold.
+  * events_inside_region — list CPU events that ran inside named
+    region instances.
+  * logs_around_slow_frames — for every frame past a pX threshold,
+    return logs in a window around it.
+`;
+
+// Tool definitions are kept as a list so we can register them in one loop.
+// Each schema is a `z.object(...)` — McpServer.registerTool wants the raw
+// shape (Record<string, ZodTypeAny>) so we pass `schema.shape` at
+// registration time. We keep the generic loose at the list level (ZodTypeAny)
+// so each entry's handler can accept its own narrowed arg type without the
+// container forcing a single uniform shape.
+interface ToolDef<S extends ZodTypeAny = ZodTypeAny> {
   name: string;
   description: string;
   schema: S;
@@ -84,6 +125,11 @@ interface ToolDef<S extends ZodTypeAny> {
 }
 
 export interface BuiltServer {
+  /**
+   * The underlying low-level Server (exposed through McpServer.server). The
+   * stdio entrypoint uses `.connect(transport)` on this object; tests poke
+   * into its `_requestHandlers` map.
+   */
   server: Server;
   daemons: DaemonRegistry | null;
 }
@@ -120,7 +166,7 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
     daemons: daemons ?? undefined,
   };
 
-  const tools: ToolDef<ZodTypeAny>[] = [
+  const tools: ToolDef[] = [
     {
       name: "trace_overview",
       description:
@@ -351,56 +397,52 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
     },
   ];
 
-  const byName = new Map(tools.map((t) => [t.name, t] as const));
-
-  const server = new Server(
+  const mcp = new McpServer(
     { name: "ue-trace-mcp", version: "0.4.0-dev" },
-    { capabilities: { tools: {} } },
+    {
+      capabilities: { tools: {} },
+      instructions: SERVER_INSTRUCTIONS,
+    },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: tools.map((t) => ({
-      name: t.name,
-      description: t.description,
-      inputSchema: zodToJsonSchema(t.schema, { $refStrategy: "none" }) as Record<string, unknown>,
-    })),
-  }));
+  // Register every tool with McpServer. The high-level API:
+  //   * validates incoming args against the zod shape (we pass `schema.shape`,
+  //     a ZodRawShape — McpServer wraps it in a ZodObject internally and
+  //     uses zod-to-json-schema to publish a plain-object inputSchema)
+  //   * passes the validated args to our handler
+  //   * lets us return a regular CallToolResult; throws are caught and
+  //     surfaced as isError responses
+  for (const t of tools) {
+    mcp.registerTool(
+      t.name,
+      {
+        description: t.description,
+        // Cast: at the container level we keep ToolDef<ZodTypeAny> so each
+        // handler retains its narrowed arg type, but at registration time
+        // every schema IS a ZodObject and we want its .shape.
+        inputSchema: (t.schema as ZodObject<ZodRawShape>).shape,
+      },
+      async (args) => {
+        try {
+          const result = await t.handler(args as ReturnType<typeof t.schema.parse>, ctx);
+          return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
+        } catch (e) {
+          const err = e as Error & { stderr?: string };
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text" as const,
+                text: err.stderr
+                  ? `${err.message}\n--- stderr ---\n${err.stderr}`
+                  : err.message,
+              },
+            ],
+          };
+        }
+      },
+    );
+  }
 
-  server.setRequestHandler(CallToolRequestSchema, async (req) => {
-    const tool = byName.get(req.params.name);
-    if (!tool) {
-      return {
-        isError: true,
-        content: [{ type: "text", text: `unknown tool: ${req.params.name}` }],
-      };
-    }
-
-    const parsed = tool.schema.safeParse(req.params.arguments);
-    if (!parsed.success) {
-      return {
-        isError: true,
-        content: [{ type: "text", text: `invalid arguments: ${parsed.error.message}` }],
-      };
-    }
-
-    try {
-      const result = await tool.handler(parsed.data, ctx);
-      return { content: [{ type: "text", text: JSON.stringify(result) }] };
-    } catch (e) {
-      const err = e as Error & { stderr?: string };
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: err.stderr
-              ? `${err.message}\n--- stderr ---\n${err.stderr}`
-              : err.message,
-          },
-        ],
-      };
-    }
-  });
-
-  return { server, daemons };
+  return { server: mcp.server, daemons };
 }
