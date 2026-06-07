@@ -8,7 +8,15 @@ public class TraceDigestTarget : TargetRules
 	public TraceDigestTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Program;
-		LinkType = TargetLinkType.Modular;
+		// Monolithic: all engine modules statically linked into one executable.
+		// We chose this over Modular for two reasons:
+		//   1. Cleaner release artifact — a single ~30–50 MB binary instead of
+		//      an exe plus ~10 libTraceDigest-<Module>.so files. The .so form
+		//      ships compiled engine modules in a separately-distributable
+		//      library shape, which is more uncomfortable under UE's EULA.
+		//   2. Easier user experience — drop the binary anywhere and run it,
+		//      no need to keep neighbouring libraries together.
+		LinkType = TargetLinkType.Monolithic;
 		LaunchModuleName = "TraceDigest";
 
 		DefaultBuildSettings = BuildSettingsVersion.Latest;

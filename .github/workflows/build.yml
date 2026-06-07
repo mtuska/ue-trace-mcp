@@ -82,6 +82,15 @@ jobs:
             "https://x-access-token:${UE_TOKEN}@github.com/EpicGames/UnrealEngine.git" ue
           git -C ue log -1 --oneline
 
+      # Defense in depth: git stored the PAT inside ue/.git/config when it
+      # baked it into the origin URL during clone. We never `fetch` again, so
+      # we can strip the embedded credential from disk now. GH Actions still
+      # masks the token in log output regardless, but this removes the
+      # token-on-disk surface area entirely.
+      - name: Scrub credentials from cloned repo
+        shell: bash
+        run: git -C ue remote set-url origin https://github.com/EpicGames/UnrealEngine.git
+
       # Two non-obvious requirements when running Setup non-interactively:
       #   1. --force, not the default --prompt — without it the `read` against
       #      a non-TTY returns EOF and GitDependencies skips overwrite checks.
@@ -124,6 +133,22 @@ jobs:
             --exclude=VisionOS ^
             --exclude=Linux
 
+      # UnrealBuildTool is C# source that has to be compiled before Build.sh
+      # can invoke it. A source clone doesn't ship UBT.dll prebuilt and
+      # Build.sh only auto-builds it if `-buildubt` is in argv — which we
+      # aren't passing. BuildUBT.{sh,bat} is the canonical bootstrap script
+      # (GenerateProjectFiles.sh runs the same thing internally).
+      - name: Build UnrealBuildTool (Linux)
+        if: runner.os == 'Linux'
+        working-directory: ue
+        run: Engine/Build/BatchFiles/BuildUBT.sh
+
+      - name: Build UnrealBuildTool (Windows)
+        if: runner.os == 'Windows'
+        working-directory: ue
+        shell: cmd
+        run: Engine\Build\BatchFiles\BuildUBT.bat
+
       # Drop ue-program into the engine source tree. Symlink on Linux, copy on
       # Windows (symlinks need Developer Mode or admin, and we don't want to
       # rely on either being on by default on the runner).
@@ -147,16 +172,17 @@ jobs:
         shell: cmd
         run: Engine\Build\BatchFiles\Build.bat TraceDigest ${{ matrix.platform }} Development
 
-      # Modular link: the .exe / TraceDigest binary loads side-by-side .so/.dll
-      # modules at runtime. Package all of them so the artifact runs anywhere.
-      # Debug symbols (.debug/.sym/.pdb) are intentionally excluded to keep the
-      # archive small; people who need them can rebuild locally.
+      # Monolithic link: TraceDigest is a single self-contained binary, no
+      # side-by-side modules. We bundle the binary plus the small .target
+      # manifest (UBT metadata, useful for diagnostics). Debug symbols
+      # (.debug/.sym/.pdb) are intentionally excluded to keep the archive
+      # small; people who need them can rebuild locally.
       - name: Package (Linux)
         if: runner.os == 'Linux'
         run: |
           cd ue/Engine/Binaries/Linux
           tar -czf "$GITHUB_WORKSPACE/TraceDigest-${{ env.VERSION_TAG }}-ue${{ inputs.ue_branch }}-linux-x64.tar.gz" \
-            TraceDigest TraceDigest.modules TraceDigest.target libTraceDigest-*.so
+            TraceDigest TraceDigest.target
           ls -la "$GITHUB_WORKSPACE"/TraceDigest-*.tar.gz
 
       - name: Package (Windows)
@@ -166,9 +192,8 @@ jobs:
           $bin = "ue\Engine\Binaries\Win64"
           $items = @(
             "$bin\TraceDigest.exe",
-            "$bin\TraceDigest.modules",
             "$bin\TraceDigest.target"
-          ) + (Get-ChildItem -Path "$bin\TraceDigest-*.dll").FullName
+          )
           $out = "TraceDigest-${{ env.VERSION_TAG }}-ue${{ inputs.ue_branch }}-windows-x64.zip"
           Compress-Archive -Path $items -DestinationPath $out -Force
           Get-Item $out
