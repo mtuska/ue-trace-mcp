@@ -32,6 +32,14 @@ public class TraceDigestTarget : TargetRules
 		bIsBuildingConsoleApplication = true;
 		bUseLoggingInShipping = true;
 
+		// ICU pulls in a ~10MB localization data directory at runtime, probed
+		// relative to the binary (Engine/Content/Internationalization). When
+		// the binary ships in isolation that path doesn't exist and ICU init
+		// crashes the process before main() returns. We emit JSON of numbers
+		// and English log lines — no FText, no locale-aware formatting — so
+		// compiling ICU out is the right move.
+		bCompileICU = false;
+
 		SolutionDirectory = "Programs";
 	}
 }
