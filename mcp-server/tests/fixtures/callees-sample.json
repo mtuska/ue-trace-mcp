@@ -1,0 +1,12 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "callees",
+  "event": "Zombie_TierPass",
+  "target_count": 6400,
+  "target_inclusive_ms": 13200.2,
+  "target_exclusive_ms": 1200.0,
+  "events": [
+    { "name": "Zombie_StepLocomotion",   "count": 6400, "inclusive_ms": 273.4, "exclusive_ms": 268.1 },
+    { "name": "Zombie_PerceptionUpdate", "count": 4200, "inclusive_ms": 198.7, "exclusive_ms": 190.0 }
+  ]
+}

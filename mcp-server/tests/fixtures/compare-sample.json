@@ -1,0 +1,27 @@
+{
+  "file": "/fake/a.utrace",
+  "file2": "/fake/b.utrace",
+  "mode": "compare",
+  "duration_a_ms": 16800.5,
+  "duration_b_ms": 16950.2,
+  "events": [
+    {
+      "name": "Zombie_WallSlideProbe",
+      "only_in_a": false,
+      "only_in_b": true,
+      "delta_p95_ms": 0.085,
+      "delta_total_ms": 88.1,
+      "a": { "count": 0,    "total_ms": 0.0, "avg_ms": 0.0, "p50_ms": 0.0, "p95_ms": 0.0, "p99_ms": 0.0, "max_ms": 0.0 },
+      "b": { "count": 1800, "total_ms": 88.1, "avg_ms": 0.049, "p50_ms": 0.048, "p95_ms": 0.085, "p99_ms": 0.14, "max_ms": 0.31 }
+    },
+    {
+      "name": "Zombie_StepLocomotion",
+      "only_in_a": false,
+      "only_in_b": false,
+      "delta_p95_ms": 0.012,
+      "delta_total_ms": 35.6,
+      "a": { "count": 6400, "total_ms": 273.4, "avg_ms": 0.043, "p50_ms": 0.040, "p95_ms": 0.078, "p99_ms": 0.150, "max_ms": 0.412 },
+      "b": { "count": 6400, "total_ms": 309.0, "avg_ms": 0.048, "p50_ms": 0.046, "p95_ms": 0.090, "p99_ms": 0.155, "max_ms": 0.430 }
+    }
+  ]
+}

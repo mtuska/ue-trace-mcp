@@ -1,0 +1,26 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "threads",
+  "duration_ms": 16800.5,
+  "events": [
+    {
+      "thread_id": 4321,
+      "thread_name": "GameThread",
+      "event_count": 105432,
+      "total_depth0_ms": 12500.0,
+      "top_timers": [
+        { "name": "Zombie_TierPass",      "count": 6400, "inclusive_ms": 13200.2 },
+        { "name": "Zombie_Registry_Tick", "count":  960, "inclusive_ms": 16745.6 }
+      ]
+    },
+    {
+      "thread_id": 8765,
+      "thread_name": "TaskGraphThread_1",
+      "event_count": 32100,
+      "total_depth0_ms": 3300.4,
+      "top_timers": [
+        { "name": "Zombie_SimStep_Parallel", "count": 720, "inclusive_ms": 3374.6 }
+      ]
+    }
+  ]
+}

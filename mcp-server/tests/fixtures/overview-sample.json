@@ -1,0 +1,23 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "overview",
+  "duration_ms": 16800.5,
+  "frame_count": 1050,
+  "frame_stats": {
+    "min_ms": 14.2,
+    "avg_ms": 16.0,
+    "p50_ms": 15.8,
+    "p95_ms": 19.5,
+    "p99_ms": 24.0,
+    "max_ms": 47.3
+  },
+  "slowest_frames": [
+    { "idx": 412, "duration_ms": 47.3 },
+    { "idx": 980, "duration_ms": 39.1 },
+    { "idx": 73,  "duration_ms": 33.8 }
+  ],
+  "events": [
+    { "name": "Zombie_StepLocomotion", "count": 6400, "total_ms": 273.4, "avg_ms": 0.043, "p50_ms": 0.040, "p95_ms": 0.078, "p99_ms": 0.150, "max_ms": 0.412 },
+    { "name": "Zombie_PerceptionUpdate", "count": 4200, "total_ms": 198.7, "avg_ms": 0.047, "p50_ms": 0.045, "p95_ms": 0.090, "p99_ms": 0.180, "max_ms": 0.501 }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "timeline",
+  "event": "Zombie_StepLocomotion",
+  "duration_ms": 50.0,
+  "frame_count": 3,
+  "events": [
+    { "frame_idx": 0, "start_ms": 1.0,  "duration_ms": 0.05 },
+    { "frame_idx": 0, "start_ms": 1.1,  "duration_ms": 0.06 },
+    { "frame_idx": 1, "start_ms": 17.0, "duration_ms": 0.04 },
+    { "frame_idx": 2, "start_ms": 34.0, "duration_ms": 0.07 }
+  ]
+}
