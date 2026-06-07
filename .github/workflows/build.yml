@@ -42,8 +42,11 @@ permissions:
 
 # Resolve a sane version tag to embed in artifact filenames. Falls back to the
 # short commit sha if neither workflow_dispatch nor workflow_call supplied one.
+# `INPUTS_*` env vars carry workflow_dispatch inputs into the runner without
+# expanding them inside `run:` scripts (which would be shell-injection-prone).
 env:
   VERSION_TAG: ${{ inputs.version_tag != '' && inputs.version_tag || github.ref_type == 'tag' && github.ref_name || format('sha-{0}', github.sha) }}
+  INPUTS_UE_BRANCH: ${{ inputs.ue_branch }}
 
 jobs:
   build:
@@ -62,14 +65,36 @@ jobs:
 
     steps:
       - name: Checkout this repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           path: src
 
-      # The UE source is gated. We use a manual `git clone` rather than
-      # `actions/checkout` because the latter doesn't make the credential
-      # plumbing easy when the repo lives in a different GitHub org.
-      - name: Clone UnrealEngine (${{ inputs.ue_branch }})
+      # Validate every workflow-dispatch / tag-derived input before it lands
+      # in a shell. Both can become parts of git refs, filenames, and (worst
+      # case) shell command lines later in the workflow. We allow a narrow
+      # character class: alphanumerics + `._/-+v`. Catches `;`, `$`, `` ` ``,
+      # quotes, spaces, newlines — anything that could break out of a token.
+      - name: Validate workflow inputs
+        shell: bash
+        run: |
+          for name in INPUTS_UE_BRANCH VERSION_TAG; do
+            val="${!name}"
+            if ! [[ "$val" =~ ^[A-Za-z0-9._/+-]+$ ]]; then
+              echo "::error::$name='$val' contains forbidden characters; expected [A-Za-z0-9._/+-]+"
+              exit 1
+            fi
+          done
+
+      # Clone EpicGames/UnrealEngine without baking the PAT into the on-disk
+      # remote URL. `http.extraheader` carries the credential for THIS clone
+      # call only — it's never written into ue/.git/config — so no scrub step
+      # is needed afterwards, and there's no window in which a future log/cache
+      # step could persist the token. GitHub Actions still masks the token in
+      # log output via the secret-mask filter.
+      #
+      # INPUTS_UE_BRANCH is already validated by the prior step so we can
+      # interpolate it into the git arg directly.
+      - name: Clone UnrealEngine
         env:
           UE_TOKEN: ${{ secrets.UE_TOKEN }}
         shell: bash
@@ -78,18 +103,11 @@ jobs:
             echo "::error::UE_TOKEN secret is missing. See .github/workflows/build.yml header for setup."
             exit 1
           fi
-          git clone --depth=1 --branch="${{ inputs.ue_branch }}" \
-            "https://x-access-token:${UE_TOKEN}@github.com/EpicGames/UnrealEngine.git" ue
+          AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$UE_TOKEN" | base64 -w0)"
+          git -c http.extraheader="$AUTH_HEADER" \
+              clone --depth=1 --branch="$INPUTS_UE_BRANCH" \
+              https://github.com/EpicGames/UnrealEngine.git ue
           git -C ue log -1 --oneline
-
-      # Defense in depth: git stored the PAT inside ue/.git/config when it
-      # baked it into the origin URL during clone. We never `fetch` again, so
-      # we can strip the embedded credential from disk now. GH Actions still
-      # masks the token in log output regardless, but this removes the
-      # token-on-disk surface area entirely.
-      - name: Scrub credentials from cloned repo
-        shell: bash
-        run: git -C ue remote set-url origin https://github.com/EpicGames/UnrealEngine.git
 
       # Two non-obvious requirements when running Setup non-interactively:
       #   1. --force, not the default --prompt — without it the `read` against
@@ -177,29 +195,34 @@ jobs:
       # manifest (UBT metadata, useful for diagnostics). Debug symbols
       # (.debug/.sym/.pdb) are intentionally excluded to keep the archive
       # small; people who need them can rebuild locally.
+      #
+      # `$VERSION_TAG` / `$INPUTS_UE_BRANCH` are read from the workflow-level
+      # `env:` block (validated by the clone step) — NOT interpolated via
+      # `${{ inputs.x }}` here, to avoid shell injection on workflow_dispatch.
       - name: Package (Linux)
         if: runner.os == 'Linux'
         run: |
+          archive="TraceDigest-${VERSION_TAG}-ue${INPUTS_UE_BRANCH}-linux-x64.tar.gz"
           cd ue/Engine/Binaries/Linux
-          tar -czf "$GITHUB_WORKSPACE/TraceDigest-${{ env.VERSION_TAG }}-ue${{ inputs.ue_branch }}-linux-x64.tar.gz" \
-            TraceDigest TraceDigest.target
-          ls -la "$GITHUB_WORKSPACE"/TraceDigest-*.tar.gz
+          tar -czf "$GITHUB_WORKSPACE/$archive" TraceDigest TraceDigest.target
+          ls -la "$GITHUB_WORKSPACE/$archive"
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # PowerShell reads env vars via $env:NAME.
+          $archive = "TraceDigest-$env:VERSION_TAG-ue$env:INPUTS_UE_BRANCH-windows-x64.zip"
           $bin = "ue\Engine\Binaries\Win64"
           $items = @(
             "$bin\TraceDigest.exe",
             "$bin\TraceDigest.target"
           )
-          $out = "TraceDigest-${{ env.VERSION_TAG }}-ue${{ inputs.ue_branch }}-windows-x64.zip"
-          Compress-Archive -Path $items -DestinationPath $out -Force
-          Get-Item $out
+          Compress-Archive -Path $items -DestinationPath $archive -Force
+          Get-Item $archive
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: tracedigest-${{ matrix.label }}
           path: TraceDigest-*.${{ runner.os == 'Linux' && 'tar.gz' || 'zip' }}
