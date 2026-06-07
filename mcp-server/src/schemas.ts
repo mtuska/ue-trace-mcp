@@ -408,6 +408,36 @@ export const TaskDrillArgs = z.object({
 });
 export type TaskDrillArgsT = z.infer<typeof TaskDrillArgs>;
 
+// trace_asset_* family — three tools over ILoadTimeProfilerProvider. The
+// TS surface is split into per-purpose schemas even though the binary
+// uses a single -mode=asset -view=<…> umbrella. Each tool keeps a tight
+// params shape.
+const assetFrameRange = z
+  .tuple([z.number().int().nonnegative(), z.number().int().positive()])
+  .optional()
+  .describe("Restrict to Game-thread frames [A, B). Default: full trace.");
+
+export const AssetPackagesArgs = z.object({
+  file,
+  frameRange: assetFrameRange,
+  limit: z.number().int().positive().optional().describe("Cap returned packages. Default 200."),
+});
+export type AssetPackagesArgsT = z.infer<typeof AssetPackagesArgs>;
+
+export const AssetRequestsArgs = z.object({
+  file,
+  frameRange: assetFrameRange,
+  limit: z.number().int().positive().optional().describe("Cap returned requests. Default 200."),
+});
+export type AssetRequestsArgsT = z.infer<typeof AssetRequestsArgs>;
+
+export const AssetExportsArgs = z.object({
+  file,
+  frameRange: assetFrameRange,
+  limit: z.number().int().positive().optional().describe("Cap returned export rows. Default 200."),
+});
+export type AssetExportsArgsT = z.infer<typeof AssetExportsArgs>;
+
 // trace_query — intent-dispatched escape hatch. `intent` is z.string() (not
 // an enum) so the C++ side can add new intents without forcing a schema
 // bump. Use intent="list" to discover the registry.

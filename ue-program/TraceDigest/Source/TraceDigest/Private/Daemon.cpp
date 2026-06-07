@@ -256,6 +256,7 @@ static FString HandleQuery(FDaemonState& State, const FString& CmdLine)
 		case EMode::Modules:     Modes::RunModules    (Session, Args, Json); break;
 		case EMode::TaskList:    Modes::RunTaskList   (Session, Args, Json); break;
 		case EMode::TaskDrill:   Modes::RunTaskDrill  (Session, Args, Json); break;
+		case EMode::Asset:       Modes::RunAsset      (Session, Args, Json); break;
 		case EMode::Compare:
 		{
 			// Refused in daemon mode: -file2= would be a client-controlled,

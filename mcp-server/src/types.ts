@@ -613,6 +613,62 @@ export interface TaskDrillOutput {
   nested_tasks?: TaskRelation[];
 }
 
+// trace_asset_* family — pre-aggregated load-time tables.
+export interface AssetPackageRow {
+  id: number;
+  name: string;
+  total_serialized_size: number;
+  serialized_header_size: number;
+  serialized_exports_count: number;
+  serialized_exports_size: number;
+  main_thread_ms: number;
+  async_loading_ms: number;
+  summary: {
+    total_header_size: number;
+    import_count: number;
+    export_count: number;
+    priority: number;
+  };
+  imported_packages_count: number;
+  request_id: number;
+}
+
+export interface AssetRequestRow {
+  id: number;
+  name: string;
+  start_ms: number;
+  duration_ms: number;
+  package_count: number;
+}
+
+export interface AssetExportRow {
+  id: number;
+  class: string;
+  package_name: string;
+  package_id: number;
+  serialized_size: number;
+  main_thread_ms: number;
+  async_loading_ms: number;
+  /** "create" | "serialize" | "postload" | "none" */
+  event_type: string;
+}
+
+export interface AssetOutputBase<View extends string, Row> {
+  file: string;
+  mode: "asset";
+  view: View;
+  window_start_ms: number;
+  window_end_ms: number;
+  has_load_time_data: boolean;
+  total_in_window: number;
+  truncated: boolean;
+  events: Row[];
+}
+
+export type AssetPackagesOutput = AssetOutputBase<"packages", AssetPackageRow>;
+export type AssetRequestsOutput = AssetOutputBase<"requests", AssetRequestRow>;
+export type AssetExportsOutput  = AssetOutputBase<"exports",  AssetExportRow>;
+
 // trace_query — open-ended envelope. The `events` array shape varies per
 // intent; intent-specific top-level fields land alongside it. We type the
 // rows as `Record<string, unknown>` because of that variability.
@@ -699,4 +755,7 @@ export type AnyDigestOutput =
   | CallstackOutput
   | ModulesOutput
   | TaskListOutput
-  | TaskDrillOutput;
+  | TaskDrillOutput
+  | AssetPackagesOutput
+  | AssetRequestsOutput
+  | AssetExportsOutput;

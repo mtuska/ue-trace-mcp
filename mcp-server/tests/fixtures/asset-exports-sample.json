@@ -1,0 +1,15 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "asset",
+  "view": "exports",
+  "window_start_ms": 0.0,
+  "window_end_ms": 16800.5,
+  "has_load_time_data": true,
+  "total_in_window": 3,
+  "truncated": false,
+  "events": [
+    { "id": 1001, "class": "StaticMesh",      "package_name": "/Game/Maps/Stress01",       "package_id": 101, "serialized_size": 4194304, "main_thread_ms":  3.5, "async_loading_ms": 28.4, "event_type": "serialize" },
+    { "id": 1002, "class": "SkeletalMesh",    "package_name": "/Game/Characters/Zombie",   "package_id": 102, "serialized_size":  524288, "main_thread_ms":  1.2, "async_loading_ms":  6.7, "event_type": "serialize" },
+    { "id": 1003, "class": "Texture2D",       "package_name": "/Game/Characters/Zombie",   "package_id": 102, "serialized_size":  262144, "main_thread_ms":  0.4, "async_loading_ms":  2.1, "event_type": "postload"  }
+  ]
+}

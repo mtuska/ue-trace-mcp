@@ -5,6 +5,9 @@ import { chmod } from "node:fs/promises";
 
 import { runTraceDigest, extractTrailingJson, TraceDigestError } from "../src/digest.js";
 import {
+  doAssetExports,
+  doAssetPackages,
+  doAssetRequests,
   doBookmarkList,
   doCallees,
   doCallers,
@@ -486,5 +489,34 @@ describe("v0.2 tools", () => {
     expect(r.timestamps?.started_ms).toBeGreaterThan(0);
     expect(Array.isArray(r.prerequisites)).toBe(true);
     expect(Array.isArray(r.subsequents)).toBe(true);
+  });
+
+  it("doAssetPackages: per-package load timings with thread split", async () => {
+    const cache = new TraceCache(3);
+    const r = await doAssetPackages({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.view).toBe("packages");
+    expect(r.has_load_time_data).toBe(true);
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(r.events[0]!.name.length).toBeGreaterThan(0);
+    expect(r.events[0]!.async_loading_ms).toBeGreaterThan(0);
+    expect(r.events[0]!.summary.export_count).toBeGreaterThan(0);
+  });
+
+  it("doAssetRequests: top-level load requests with package_count", async () => {
+    const cache = new TraceCache(3);
+    const r = await doAssetRequests({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.view).toBe("requests");
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(r.events[0]!.package_count).toBeGreaterThan(0);
+    expect(r.events[0]!.duration_ms).toBeGreaterThan(0);
+  });
+
+  it("doAssetExports: per-export breakdown with event_type", async () => {
+    const cache = new TraceCache(3);
+    const r = await doAssetExports({ file: FIXTURE_TRACE }, { cache, runOptions: { binary: MOCK_BIN } });
+    expect(r.view).toBe("exports");
+    expect(r.events.length).toBeGreaterThan(0);
+    expect(["create", "serialize", "postload", "none"]).toContain(r.events[0]!.event_type);
+    expect(r.events[0]!.serialized_size).toBeGreaterThan(0);
   });
 });

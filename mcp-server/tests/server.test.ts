@@ -32,6 +32,9 @@ describe("MCP server wiring", () => {
       tools: { name: string; inputSchema: Record<string, unknown> }[];
     };
     expect(res.tools.map((t) => t.name).sort()).toEqual([
+      "trace_asset_exports",
+      "trace_asset_packages",
+      "trace_asset_requests",
       "trace_bookmark_list",
       "trace_callees",
       "trace_callers",

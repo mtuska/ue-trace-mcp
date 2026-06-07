@@ -4,6 +4,9 @@ import type { ZodObject, ZodRawShape, ZodTypeAny } from "zod";
 
 import { TraceCache } from "./cache.js";
 import {
+  doAssetExports,
+  doAssetPackages,
+  doAssetRequests,
   doBookmarkList,
   doCallees,
   doCallers,
@@ -37,6 +40,9 @@ import {
   type ToolContext,
 } from "./tools.js";
 import {
+  AssetExportsArgs,
+  AssetPackagesArgs,
+  AssetRequestsArgs,
   BookmarkListArgs,
   CallersArgs,
   CalleesArgs,
@@ -442,6 +448,33 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
         "scheduling stalls and dependency chains.",
       schema: TaskDrillArgs,
       handler: (a, c) => doTaskDrill(a, c),
+    },
+    {
+      name: "trace_asset_packages",
+      description:
+        "Per-package load timings (FPackagesTableRow). Each row: name, total_serialized_size, " +
+        "main_thread_ms vs async_loading_ms split, summary (header size, import/export counts, " +
+        "priority), and imported_packages_count. Use to answer \"why is my map loading slowly?\". " +
+        "Empty total_in_window means the loadtime channel wasn't captured.",
+      schema: AssetPackagesArgs,
+      handler: (a, c) => doAssetPackages(a, c),
+    },
+    {
+      name: "trace_asset_requests",
+      description:
+        "Top-level load requests (FRequestsTableRow). Each row: id, name, start_ms, duration_ms, " +
+        "package_count. A 'request' usually corresponds to a LoadPackage / async-load call site.",
+      schema: AssetRequestsArgs,
+      handler: (a, c) => doAssetRequests(a, c),
+    },
+    {
+      name: "trace_asset_exports",
+      description:
+        "Per-export breakdown (FExportsTableRow). Each row: id, class, owning package, " +
+        "serialized_size, main_thread_ms vs async_loading_ms split, and event_type " +
+        "(create/serialize/postload). Lets you find which UObject classes dominate load time.",
+      schema: AssetExportsArgs,
+      handler: (a, c) => doAssetExports(a, c),
     },
   ];
 

@@ -1,6 +1,9 @@
 import { runTraceDigest, type DigestRunOptions } from "./digest.js";
 import { TraceCache, variantHash } from "./cache.js";
 import type {
+  AssetExportsArgsT,
+  AssetPackagesArgsT,
+  AssetRequestsArgsT,
   BookmarkListArgsT,
   CallersArgsT,
   CalleesArgsT,
@@ -33,6 +36,9 @@ import type {
   UnloadArgsT,
 } from "./schemas.js";
 import type {
+  AssetExportsOutput,
+  AssetPackagesOutput,
+  AssetRequestsOutput,
   BookmarkListOutput,
   ButterflyOutput,
   CallstackOutput,
@@ -491,6 +497,45 @@ export async function doTaskDrill(args: TaskDrillArgsT, ctx: ToolContext): Promi
     { mode: "task_drill", file: args.file, taskId: args.task_id },
     ctx.runOptions,
   )) as TaskDrillOutput;
+}
+
+export async function doAssetPackages(args: AssetPackagesArgsT, ctx: ToolContext): Promise<AssetPackagesOutput> {
+  const variant = variantHash("asset_packages", { frameRange: args.frameRange, limit: args.limit });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as AssetPackagesOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "asset", file: args.file, view: "packages", frameRange: args.frameRange, limit: args.limit },
+    ctx.runOptions,
+  )) as AssetPackagesOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doAssetRequests(args: AssetRequestsArgsT, ctx: ToolContext): Promise<AssetRequestsOutput> {
+  const variant = variantHash("asset_requests", { frameRange: args.frameRange, limit: args.limit });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as AssetRequestsOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "asset", file: args.file, view: "requests", frameRange: args.frameRange, limit: args.limit },
+    ctx.runOptions,
+  )) as AssetRequestsOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
+}
+
+export async function doAssetExports(args: AssetExportsArgsT, ctx: ToolContext): Promise<AssetExportsOutput> {
+  const variant = variantHash("asset_exports", { frameRange: args.frameRange, limit: args.limit });
+  const cached = await ctx.cache.get(args.file, variant);
+  if (cached) return cached.value as AssetExportsOutput;
+
+  const out = (await runTraceDigest(
+    { mode: "asset", file: args.file, view: "exports", frameRange: args.frameRange, limit: args.limit },
+    ctx.runOptions,
+  )) as AssetExportsOutput;
+  await ctx.cache.put(args.file, variant, out);
+  return out;
 }
 
 export async function doQuery(args: QueryArgsT, ctx: ToolContext): Promise<QueryOutput> {

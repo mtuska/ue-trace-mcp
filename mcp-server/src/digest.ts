@@ -51,7 +51,8 @@ export interface DigestArgsRaw {
     | "callstack"
     | "modules"
     | "task_list"
-    | "task_drill";
+    | "task_drill"
+    | "asset";
   prefix?: string;
   event?: string;
   limit?: number;

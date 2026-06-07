@@ -31,6 +31,7 @@ enum class EMode : uint8
 	Modules,   // List discovered modules + symbol-resolution stats
 	TaskList,  // Windowed enumeration of tasks with state filter
 	TaskDrill, // Full info on one task (prerequisites/subsequents/parents/nested)
+	Asset,     // Asset/load-time tables: view-dispatched (packages|requests|exports)
 };
 
 struct FArgs

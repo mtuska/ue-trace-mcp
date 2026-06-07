@@ -1,0 +1,14 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "asset",
+  "view": "requests",
+  "window_start_ms": 0.0,
+  "window_end_ms": 16800.5,
+  "has_load_time_data": true,
+  "total_in_window": 2,
+  "truncated": false,
+  "events": [
+    { "id": 1, "name": "LoadMap.Stress01",     "start_ms":   500.0, "duration_ms": 4200.0, "package_count": 412 },
+    { "id": 2, "name": "AsyncLoad.PostStart",  "start_ms":  6000.0, "duration_ms":  800.0, "package_count":  18 }
+  ]
+}

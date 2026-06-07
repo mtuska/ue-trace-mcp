@@ -1,0 +1,51 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "asset",
+  "view": "packages",
+  "window_start_ms": 0.0,
+  "window_end_ms": 16800.5,
+  "has_load_time_data": true,
+  "total_in_window": 3,
+  "truncated": false,
+  "events": [
+    {
+      "id": 101,
+      "name": "/Game/Maps/Stress01",
+      "total_serialized_size": 8388608,
+      "serialized_header_size":  131072,
+      "serialized_exports_count": 240,
+      "serialized_exports_size":  8257536,
+      "main_thread_ms":  124.0,
+      "async_loading_ms": 980.0,
+      "summary": { "total_header_size": 131072, "import_count": 410, "export_count": 240, "priority": 0 },
+      "imported_packages_count": 410,
+      "request_id": 1
+    },
+    {
+      "id": 102,
+      "name": "/Game/Characters/Zombie",
+      "total_serialized_size": 2097152,
+      "serialized_header_size":   65536,
+      "serialized_exports_count":  85,
+      "serialized_exports_size":  2031616,
+      "main_thread_ms":   28.0,
+      "async_loading_ms": 196.0,
+      "summary": { "total_header_size": 65536, "import_count": 142, "export_count": 85, "priority": 0 },
+      "imported_packages_count": 142,
+      "request_id": 1
+    },
+    {
+      "id": 103,
+      "name": "/Engine/EngineMaterials/WorldGridMaterial",
+      "total_serialized_size":  65536,
+      "serialized_header_size":  8192,
+      "serialized_exports_count": 12,
+      "serialized_exports_size":  57344,
+      "main_thread_ms":   2.1,
+      "async_loading_ms": 11.4,
+      "summary": { "total_header_size": 8192, "import_count": 24, "export_count": 12, "priority": 0 },
+      "imported_packages_count": 24,
+      "request_id": 1
+    }
+  ]
+}

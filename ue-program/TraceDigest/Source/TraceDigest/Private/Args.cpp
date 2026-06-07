@@ -35,6 +35,7 @@ const TCHAR* FArgs::ModeName(EMode M)
 		case EMode::Modules:   return TEXT("modules");
 		case EMode::TaskList:  return TEXT("task_list");
 		case EMode::TaskDrill: return TEXT("task_drill");
+		case EMode::Asset:     return TEXT("asset");
 	}
 	return TEXT("digest");
 }
@@ -66,6 +67,7 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 		else if (ModeStr.Equals(TEXT("modules"),   ESearchCase::IgnoreCase)) { Mode = EMode::Modules;   }
 		else if (ModeStr.Equals(TEXT("task_list"), ESearchCase::IgnoreCase)) { Mode = EMode::TaskList;  }
 		else if (ModeStr.Equals(TEXT("task_drill"),ESearchCase::IgnoreCase)) { Mode = EMode::TaskDrill; }
+		else if (ModeStr.Equals(TEXT("asset"),     ESearchCase::IgnoreCase)) { Mode = EMode::Asset;     }
 		else
 		{
 			OutError = FString::Printf(TEXT("unknown -mode='%s'"), *ModeStr);
@@ -239,6 +241,17 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 	{
 		OutError = TEXT("-mode=task_drill requires -task-id=<uint64>");
 		return false;
+	}
+	if (Mode == EMode::Asset)
+	{
+		if (View.IsEmpty()) View = TEXT("packages");
+		if (!View.Equals(TEXT("packages"), ESearchCase::IgnoreCase)
+			&& !View.Equals(TEXT("requests"), ESearchCase::IgnoreCase)
+			&& !View.Equals(TEXT("exports"), ESearchCase::IgnoreCase))
+		{
+			OutError = FString::Printf(TEXT("-mode=asset unknown -view='%s' (expected packages|requests|exports)"), *View);
+			return false;
+		}
 	}
 
 	// v0.4 channel validation for agnostic verbs. Compare ships cpu-only in
