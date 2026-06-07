@@ -26,6 +26,7 @@ enum class EMode : uint8
 	Logs,      // captured UE_LOG output, windowed + filtered
 	Memory,    // LLM tag tree + per-tag time-bucketed samples (view-dispatched)
 	Allocations, // Per-allocation tracking (timeline/heaps/query view-dispatched)
+	Query,     // Intent-dispatched cross-cutting queries (trace_query)
 };
 
 struct FArgs
@@ -54,6 +55,8 @@ struct FArgs
 	FString Tracker;       // -tracker=<id|name> for memory views
 	FString Tag;           // -tag=<id|name> for memory sample queries
 	FString Rule;          // -rule=<name> for allocation queries (aAf|afA|Aaf|AafB|…)
+	FString Intent;        // -intent=<name> for trace_query
+	FString Params;        // -params=<json> opaque parameter blob for trace_query
 	int32 Buckets = 256;   // -buckets=<N> bins for time-series downsampling
 	int32 Queue = -1;      // -queue=<id> for per-queue GPU views
 	double TimeA = -1.0;   // -timeA=<sec> query rule time anchor

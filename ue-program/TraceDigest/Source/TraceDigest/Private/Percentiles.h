@@ -68,6 +68,15 @@ public:
 		OutP99 = PercentileSorted(0.99);
 	}
 
+	// Returns a single percentile after sorting. Mutates the sample array
+	// (same caveat as GetPercentiles). `P` is in [0, 1].
+	double GetPercentile(double P)
+	{
+		if (Samples.Num() == 0) return 0.0;
+		std::sort(Samples.GetData(), Samples.GetData() + Samples.Num());
+		return PercentileSorted(P);
+	}
+
 private:
 	double PercentileSorted(double P) const
 	{

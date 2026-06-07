@@ -53,6 +53,7 @@ describe("MCP server wiring", () => {
       "trace_memory_tags",
       "trace_memory_trackers",
       "trace_overview",
+      "trace_query",
       "trace_region_list",
       "trace_status",
       "trace_timeline",

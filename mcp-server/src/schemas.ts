@@ -349,3 +349,22 @@ export const MemallocQueryArgs = z.object({
     ),
 });
 export type MemallocQueryArgsT = z.infer<typeof MemallocQueryArgs>;
+
+// trace_query — intent-dispatched escape hatch. `intent` is z.string() (not
+// an enum) so the C++ side can add new intents without forcing a schema
+// bump. Use intent="list" to discover the registry.
+export const QueryArgs = z.object({
+  file,
+  intent: z
+    .string()
+    .describe(
+      "Intent name. Use intent='list' to discover available intents and their params shapes.",
+    ),
+  params: z
+    .record(z.unknown())
+    .optional()
+    .describe(
+      "Opaque parameter object forwarded to the intent. Shape is intent-specific; the C++ side parses it as JSON.",
+    ),
+});
+export type QueryArgsT = z.infer<typeof QueryArgs>;

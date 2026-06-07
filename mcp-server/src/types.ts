@@ -490,6 +490,26 @@ export interface MemallocQueryOutput {
   error?: string;
 }
 
+// trace_query — open-ended envelope. The `events` array shape varies per
+// intent; intent-specific top-level fields land alongside it. We type the
+// rows as `Record<string, unknown>` because of that variability.
+export interface QueryOutput {
+  file: string;
+  mode: "query";
+  intent: string;
+  ok: boolean;
+  /** Set when the intent failed parse or wasn't recognised. */
+  error?: string;
+  /** Set on unknown-intent errors. */
+  supported?: string[];
+  /** Set when intent === "list". */
+  intents?: Array<{ name: string; description: string; params: string }>;
+  /** Set by every non-list intent that returns rows. */
+  events?: Array<Record<string, unknown>>;
+  /** Any other intent-specific top-level fields. */
+  [k: string]: unknown;
+}
+
 // --- Daemon control responses ---
 
 export interface UnloadOutput {
@@ -535,4 +555,5 @@ export type AnyDigestOutput =
   | MemorySamplesOutput
   | MemallocTimelineOutput
   | MemallocHeapsOutput
-  | MemallocQueryOutput;
+  | MemallocQueryOutput
+  | QueryOutput;

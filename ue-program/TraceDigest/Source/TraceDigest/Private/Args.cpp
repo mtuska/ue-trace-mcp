@@ -2,6 +2,7 @@
 
 #include "Args.h"
 
+#include "Misc/Base64.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 
@@ -29,6 +30,7 @@ const TCHAR* FArgs::ModeName(EMode M)
 		case EMode::Logs:      return TEXT("logs");
 		case EMode::Memory:    return TEXT("memory");
 		case EMode::Allocations: return TEXT("allocations");
+		case EMode::Query:     return TEXT("query");
 	}
 	return TEXT("digest");
 }
@@ -55,6 +57,7 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 		else if (ModeStr.Equals(TEXT("logs"),      ESearchCase::IgnoreCase)) { Mode = EMode::Logs;      }
 		else if (ModeStr.Equals(TEXT("memory"),    ESearchCase::IgnoreCase)) { Mode = EMode::Memory;    }
 		else if (ModeStr.Equals(TEXT("allocations"), ESearchCase::IgnoreCase)) { Mode = EMode::Allocations; }
+		else if (ModeStr.Equals(TEXT("query"),     ESearchCase::IgnoreCase)) { Mode = EMode::Query;     }
 		else
 		{
 			OutError = FString::Printf(TEXT("unknown -mode='%s'"), *ModeStr);
@@ -82,6 +85,25 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 	FParse::Value(CmdLine, TEXT("-tracker="),    Tracker);
 	FParse::Value(CmdLine, TEXT("-tag="),        Tag);
 	FParse::Value(CmdLine, TEXT("-rule="),       Rule);
+	FParse::Value(CmdLine, TEXT("-intent="),     Intent);
+	// Prefer base64-encoded params — bare `-params=<json>` is unreliable
+	// because FParse::Value tokenizes on commas and won't accept the
+	// raw JSON shape. The TS side base64-encodes by default; the plain
+	// form is supported for hand-invoked smoke testing of simple values.
+	FString ParamsB64;
+	if (FParse::Value(CmdLine, TEXT("-params-b64="), ParamsB64) && !ParamsB64.IsEmpty())
+	{
+		TArray<uint8> Decoded;
+		if (FBase64::Decode(ParamsB64, Decoded))
+		{
+			Decoded.Add(0);  // null-terminate so FString conversion is safe
+			Params = FString(UTF8_TO_TCHAR(reinterpret_cast<const ANSICHAR*>(Decoded.GetData())));
+		}
+	}
+	else
+	{
+		FParse::Value(CmdLine, TEXT("-params="), Params);
+	}
 	FParse::Value(CmdLine, TEXT("-buckets="),    Buckets);
 	FParse::Value(CmdLine, TEXT("-queue="),      Queue);
 	FParse::Value(CmdLine, TEXT("-timeA="),      TimeA);
@@ -186,6 +208,14 @@ bool FArgs::Parse(const TCHAR* CmdLine, FString& OutError)
 		if (View.Equals(TEXT("query"), ESearchCase::IgnoreCase) && Rule.IsEmpty())
 		{
 			OutError = TEXT("-mode=allocations -view=query requires -rule=<aAf|afA|Aaf|AafB|...>");
+			return false;
+		}
+	}
+	if (Mode == EMode::Query)
+	{
+		if (Intent.IsEmpty())
+		{
+			OutError = TEXT("-mode=query requires -intent=<name> (use intent=list to discover)");
 			return false;
 		}
 	}

@@ -25,6 +25,7 @@ import {
   doMemallocHeaps,
   doMemallocQuery,
   doMemallocTimeline,
+  doQuery,
   doMemorySamples,
   doMemoryTags,
   doMemoryTrackers,
@@ -53,6 +54,7 @@ import {
   MemallocHeapsArgs,
   MemallocQueryArgs,
   MemallocTimelineArgs,
+  QueryArgs,
   MemorySamplesArgs,
   MemoryTagsArgs,
   MemoryTrackersArgs,
@@ -331,6 +333,17 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
         "completion.",
       schema: MemallocQueryArgs,
       handler: (a, c) => doMemallocQuery(a, c),
+    },
+    {
+      name: "trace_query",
+      description:
+        "Cross-cutting escape hatch for questions the specific tools can't answer. Pick one intent " +
+        "and pass its params. Call with intent='list' to discover available intents. Initial " +
+        "intents: frames_where_counter_exceeds (find frames where a counter exceeds a threshold), " +
+        "events_inside_region (list CPU events inside named region instances), " +
+        "logs_around_slow_frames (logs in a window around each frame past a pX threshold).",
+      schema: QueryArgs,
+      handler: (a, c) => doQuery(a, c),
     },
   ];
 

@@ -18,6 +18,7 @@ import type {
   MemallocHeapsArgsT,
   MemallocQueryArgsT,
   MemallocTimelineArgsT,
+  QueryArgsT,
   MemorySamplesArgsT,
   MemoryTagsArgsT,
   MemoryTrackersArgsT,
@@ -44,6 +45,7 @@ import type {
   MemallocHeapsOutput,
   MemallocQueryOutput,
   MemallocTimelineOutput,
+  QueryOutput,
   MemorySamplesOutput,
   MemoryTagsOutput,
   MemoryTrackersOutput,
@@ -428,6 +430,19 @@ export async function doMemallocHeaps(
   )) as MemallocHeapsOutput;
   await ctx.cache.put(args.file, variant, out);
   return out;
+}
+
+export async function doQuery(args: QueryArgsT, ctx: ToolContext): Promise<QueryOutput> {
+  // Queries are not cached — intents typically iterate parameter shapes.
+  return (await runTraceDigest(
+    {
+      mode: "query",
+      file: args.file,
+      intent: args.intent,
+      params: args.params ? JSON.stringify(args.params) : undefined,
+    },
+    ctx.runOptions,
+  )) as QueryOutput;
 }
 
 export async function doMemallocQuery(

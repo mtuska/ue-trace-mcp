@@ -46,7 +46,8 @@ export interface DigestArgsRaw {
     | "regions"
     | "logs"
     | "memory"
-    | "allocations";
+    | "allocations"
+    | "query";
   prefix?: string;
   event?: string;
   limit?: number;
@@ -69,6 +70,8 @@ export interface DigestArgsRaw {
   buckets?: number;
   queue?: number;
   queryTimeoutMs?: number;
+  intent?: string;
+  params?: string;  // JSON string forwarded to C++ for parse
 }
 
 export class TraceDigestError extends Error {
@@ -123,6 +126,14 @@ function buildBinaryArgv(args: DigestArgsRaw, outPath?: string): string[] {
   if (args.buckets !== undefined) argv.push(`-buckets=${args.buckets}`);
   if (args.queue !== undefined) argv.push(`-queue=${args.queue}`);
   if (args.queryTimeoutMs !== undefined) argv.push(`-query-timeout-ms=${args.queryTimeoutMs}`);
+  if (args.intent) argv.push(`-intent=${args.intent}`);
+  if (args.params) {
+    // Base64-encode the JSON params blob. UE's FParse::Value tokenizes on
+    // commas in the raw value (and additionally on quotes/spaces depending
+    // on shell), so passing JSON directly is unreliable. Base64 dodges all
+    // of that for one extra char-class on each side.
+    argv.push(`-params-b64=${Buffer.from(args.params, "utf8").toString("base64")}`);
+  }
 
   if (outPath) argv.push(`-out=${outPath}`);
   return argv;
@@ -173,6 +184,10 @@ async function runViaDaemon(
   if (args.buckets !== undefined) parts.push(`-buckets=${args.buckets}`);
   if (args.queue !== undefined) parts.push(`-queue=${args.queue}`);
   if (args.queryTimeoutMs !== undefined) parts.push(`-query-timeout-ms=${args.queryTimeoutMs}`);
+  if (args.intent) parts.push(`-intent=${args.intent}`);
+  if (args.params) {
+    parts.push(`-params-b64=${Buffer.from(args.params, "utf8").toString("base64")}`);
+  }
 
   const data = await registry.query(args.file, parts.join(" "));
   return data as AnyDigestOutput;

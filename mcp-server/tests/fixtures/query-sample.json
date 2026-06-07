@@ -1,0 +1,12 @@
+{
+  "file": "/fake/zombieproto.utrace",
+  "mode": "query",
+  "intent": "list",
+  "ok": true,
+  "intents": [
+    { "name": "list",                          "description": "Enumerate available intents + their params shapes.", "params": "{}" },
+    { "name": "frames_where_counter_exceeds", "description": "Find every Game-thread frame where a named counter's value crosses a threshold.", "params": "{ counter: <name>, threshold: <number>, op?: \">\"|\">=\" }" },
+    { "name": "events_inside_region",         "description": "List CPU events whose start time falls inside any instance of a named region.", "params": "{ region: <name>, event_prefix?: <string>, limit?: <int> }" },
+    { "name": "logs_around_slow_frames",      "description": "For every frame whose duration exceeds the percentile threshold, list log messages within a window around the frame's start.", "params": "{ p_threshold?: 0.95, window_ms?: 50, verbosity?: <warning|error|...>, limit?: <int> }" }
+  ]
+}

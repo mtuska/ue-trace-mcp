@@ -25,6 +25,7 @@ import {
   doMemorySamples,
   doMemoryTags,
   doMemoryTrackers,
+  doQuery,
   doOverview,
   doRegionList,
   doTimeline,
@@ -412,5 +413,20 @@ describe("v0.2 tools", () => {
     expect(r.completed).toBe(true);
     expect(r.events.length).toBeGreaterThan(0);
     expect(r.events[0]!.size).toBeGreaterThan(0);
+  });
+
+  it("doQuery: list intent returns the registry", async () => {
+    const r = await doQuery(
+      { file: FIXTURE_TRACE, intent: "list" },
+      { cache: new TraceCache(3), runOptions: { binary: MOCK_BIN } },
+    );
+    expect(r.mode).toBe("query");
+    expect(r.ok).toBe(true);
+    expect(r.intents?.length).toBeGreaterThan(0);
+    // The starter cut ships these three intents.
+    const names = (r.intents ?? []).map((i) => i.name);
+    expect(names).toContain("frames_where_counter_exceeds");
+    expect(names).toContain("events_inside_region");
+    expect(names).toContain("logs_around_slow_frames");
   });
 });
