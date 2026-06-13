@@ -61,7 +61,21 @@ ue-trace-mcp/
 
 ## Quick start
 
-Wire the MCP server into your `<project>/.mcp.json` — that's it. No prebuild, no binary management:
+One command — writes (or merges into) `.mcp.json` in the current directory:
+
+```bash
+npx -y @mtuska/ue-trace-mcp install
+```
+
+This is idempotent: it preserves any other `mcpServers` entries you already have and only touches `mcpServers.ue-trace`. Useful flags:
+
+- `--pin` — lock to this installer's exact version (e.g. `@mtuska/ue-trace-mcp@0.5.1`) instead of floating to latest
+- `--name <key>` — pick a different `mcpServers` key (default `ue-trace`)
+- `--config <path>` — point at a non-default config file
+- `--force` — overwrite an existing entry under the same key
+- `--dry-run` — print what would be written without touching disk
+
+Or wire it by hand:
 
 ```jsonc
 {

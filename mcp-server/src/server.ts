@@ -535,7 +535,7 @@ export function createServer(opts: ServerOptions = {}): BuiltServer {
   ];
 
   const mcp = new McpServer(
-    { name: "ue-trace-mcp", version: "0.5.1" },
+    { name: "ue-trace-mcp", version: "0.5.2" },
     {
       capabilities: { tools: {} },
       instructions: SERVER_INSTRUCTIONS,

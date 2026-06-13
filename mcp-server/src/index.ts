@@ -2,9 +2,31 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { ensureBinary } from "./binary.js";
+import { runInstall } from "./install.js";
 import { createServer } from "./server.js";
 
 async function main(): Promise<void> {
+  // CLI sub-command dispatch. Only one ever-supported: `install`, which
+  // writes/updates .mcp.json in the cwd. Everything else falls through to
+  // the MCP stdio server (the package's primary mode).
+  const sub = process.argv[2];
+  if (sub === "install") {
+    const code = await runInstall(process.argv.slice(3));
+    process.exit(code);
+  }
+  if (sub === "--help" || sub === "-h") {
+    process.stdout.write(
+      "ue-trace-mcp — MCP server for Unreal Engine .utrace profiling.\n\n" +
+      "Run with no arguments to start the stdio MCP server (the default,\n" +
+      "and what your MCP client should invoke).\n\n" +
+      "Sub-commands:\n" +
+      "  install [options]  Add a `ue-trace` entry to .mcp.json in the\n" +
+      "                     current directory. Run `install --help` for\n" +
+      "                     the full flag list.\n",
+    );
+    process.exit(0);
+  }
+
   // Resolve the TraceDigest binary path before constructing the server. This
   // honours TRACE_DIGEST_BIN if set; otherwise downloads the version-matched
   // release artifact into a per-user cache on first run.
